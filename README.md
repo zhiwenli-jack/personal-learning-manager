@@ -4,9 +4,10 @@
 
 ## 技术栈
 
-- **后端**: FastAPI + SQLAlchemy + MySQL
-- **前端**: Vue 3 + Vite + Pinia
-- **AI**: 通义千问 API
+- **后端**: FastAPI + SQLAlchemy + SQLite
+- **前端**: Vue 3 + Vite + Axios
+- **AI**: 通义千问 API (Qwen)
+- **包管理**: uv (Python), bun/npm (JavaScript)
 
 ## 快速开始
 
@@ -19,8 +20,8 @@
 QWEN_API_KEY=your-api-key-here
 QWEN_MODEL=qwen-plus
 
-# MySQL 数据库连接
-DATABASE_URL=mysql+pymysql://root:password@localhost:3306/study_manager
+# SQLite 数据库（默认配置，无需修改）
+DATABASE_URL=sqlite:///./study_manager.db
 ```
 
 ### 2. 安装依赖
@@ -35,13 +36,7 @@ cd ../frontend
 bun install
 ```
 
-### 3. 创建数据库
-
-```sql
-CREATE DATABASE study_manager CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-### 4. 启动后端
+### 3. 启动后端
 
 ```bash
 python start_backend.py
@@ -49,7 +44,7 @@ python start_backend.py
 
 后端启动后访问 http://localhost:8000/docs 查看 API 文档。
 
-### 5. 启动前端
+### 4. 启动前端
 
 ```bash
 python start_frontend.py
@@ -93,3 +88,81 @@ python start_frontend.py
 启动后端后访问:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
+---
+
+## 推送到 GitHub
+
+本项目已初始化 Git 仓库，如需推送到 GitHub，请按以下步骤操作：
+
+### 方法1：使用 GitHub CLI（推荐）
+
+```bash
+# 安装 GitHub CLI
+winget install --id GitHub.cli
+
+# 重启终端后，认证 GitHub
+gh auth login
+
+# 推送到远程仓库
+cd "个人学习管理软件"
+git remote add origin https://github.com/YOUR_USERNAME/personal-learning-manager.git
+git push -u origin main
+```
+
+### 方法2：使用 Personal Access Token
+
+#### 步骤1：创建 GitHub Personal Access Token
+
+1. 访问：https://github.com/settings/tokens/new
+2. 填写信息：
+   - **Note**: `personal-learning-manager`
+   - **Expiration**: `90 days` 或 `No expiration`
+   - **Select scopes**: 勾选 `repo`（完整仓库访问权限）
+3. 点击 "Generate token"
+4. **复制生成的 Token**（格式：`ghp_xxxx...`）
+
+#### 步骤2：配置并推送
+
+```bash
+cd "个人学习管理软件"
+
+# 添加远程仓库（使用 Token）
+git remote add origin https://YOUR_USERNAME:YOUR_TOKEN@github.com/YOUR_USERNAME/personal-learning-manager.git
+
+# 推送代码
+git branch -M main
+git push -u origin main
+```
+
+替换：
+- `YOUR_USERNAME`: 您的 GitHub 用户名
+- `YOUR_TOKEN`: 刚才创建的 Personal Access Token
+
+### 方法3：使用 SSH 密钥
+
+```bash
+# 生成 SSH 密钥
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+# 复制公钥
+cat ~/.ssh/id_ed25519.pub
+
+# 添加到 GitHub: https://github.com/settings/ssh/new
+
+# 配置远程仓库并推送
+cd "个人学习管理软件"
+git remote add origin git@github.com:YOUR_USERNAME/personal-learning-manager.git
+git branch -M main
+git push -u origin main
+```
+
+---
+
+## 开发注意事项
+
+- **数据库**: 项目使用 SQLite，数据文件 `study_manager.db` 会自动创建在 `backend/` 目录
+- **API 超时**: 前端 API 请求超时设置为 3 分钟，适应 AI 处理时间
+- **进度展示**: 资料上传后会显示实时生成进度（SSE 流式传输）
+- **题目管理**: 支持查看、编辑、删除题目，可对题目进行"好题/待优化"评价
+
