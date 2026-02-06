@@ -1,0 +1,11 @@
+# 前端依赖
+node_modules/
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# 日志
+*.log

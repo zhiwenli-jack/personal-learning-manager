@@ -1,0 +1,14 @@
+# 后端依赖
+.venv/
+__pycache__/
+*.pyc
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# 测试
+.pytest_cache/
+.coverage

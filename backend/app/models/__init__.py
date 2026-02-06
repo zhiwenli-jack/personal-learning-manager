@@ -1,0 +1,30 @@
+"""数据模型模块"""
+from app.models.models import (
+    Direction,
+    Material,
+    MaterialStatus,
+    Question,
+    QuestionType,
+    QuestionRating,
+    Exam,
+    ExamMode,
+    ExamStatus,
+    ScoreType,
+    Answer,
+    Mistake,
+)
+
+__all__ = [
+    "Direction",
+    "Material",
+    "MaterialStatus",
+    "Question",
+    "QuestionType",
+    "QuestionRating",
+    "Exam",
+    "ExamMode",
+    "ExamStatus",
+    "ScoreType",
+    "Answer",
+    "Mistake",
+]
