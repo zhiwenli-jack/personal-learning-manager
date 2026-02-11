@@ -12,6 +12,11 @@ from app.models.models import (
     ScoreType,
     Answer,
     Mistake,
+    SourceType,
+    TaskStatus,
+    ParseTask,
+    KnowledgePoint,
+    BestPractice,
 )
 
 __all__ = [
@@ -27,4 +32,9 @@ __all__ = [
     "ScoreType",
     "Answer",
     "Mistake",
+    "SourceType",
+    "TaskStatus",
+    "ParseTask",
+    "KnowledgePoint",
+    "BestPractice",
 ]

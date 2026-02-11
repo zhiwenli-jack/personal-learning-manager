@@ -45,6 +45,21 @@ class ExamStatus(str, PyEnum):
     COMPLETED = "completed"
 
 
+class SourceType(str, PyEnum):
+    """解析来源类型"""
+    TEXT = "text"
+    FILE = "file"
+    URL = "url"
+
+
+class TaskStatus(str, PyEnum):
+    """解析任务状态"""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class Direction(Base):
     """学习方向表"""
     __tablename__ = "directions"
@@ -57,6 +72,7 @@ class Direction(Base):
     # 关联
     materials = relationship("Material", back_populates="direction")
     exams = relationship("Exam", back_populates="direction")
+    parse_tasks = relationship("ParseTask", back_populates="direction")
 
 
 class Material(Base):
@@ -150,3 +166,57 @@ class Mistake(Base):
     # 关联
     question = relationship("Question", back_populates="mistakes")
     answer = relationship("Answer", back_populates="mistake")
+
+
+class ParseTask(Base):
+    """知识解析任务表"""
+    __tablename__ = "parse_tasks"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    direction_id = Column(Integer, ForeignKey("directions.id", ondelete="SET NULL"), nullable=True, comment="学习方向ID")
+    title = Column(String(200), nullable=False, comment="任务标题")
+    source_type = Column(Enum(SourceType), nullable=False, comment="来源类型")
+    source_content = Column(Text, nullable=False, comment="来源内容")
+    raw_text = Column(Text, nullable=True, comment="提取的原始文本")
+    summary = Column(Text, nullable=True, comment="内容摘要")
+    status = Column(Enum(TaskStatus), default=TaskStatus.PENDING, comment="任务状态")
+    error_message = Column(Text, nullable=True, comment="错误信息")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
+    
+    # 关联
+    direction = relationship("Direction", back_populates="parse_tasks")
+    knowledge_points = relationship("KnowledgePoint", back_populates="task", cascade="all, delete-orphan")
+    best_practices = relationship("BestPractice", back_populates="task", cascade="all, delete-orphan")
+
+
+class KnowledgePoint(Base):
+    """知识点表"""
+    __tablename__ = "knowledge_points"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(Integer, ForeignKey("parse_tasks.id"), nullable=False, comment="解析任务ID")
+    name = Column(String(200), nullable=False, comment="知识点名称")
+    description = Column(Text, nullable=False, comment="详细描述")
+    importance = Column(Integer, default=3, comment="重要程度1-5")
+    category = Column(String(100), nullable=True, comment="分类标签")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    
+    # 关联
+    task = relationship("ParseTask", back_populates="knowledge_points")
+
+
+class BestPractice(Base):
+    """最佳实践表"""
+    __tablename__ = "best_practices"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(Integer, ForeignKey("parse_tasks.id"), nullable=False, comment="解析任务ID")
+    title = Column(String(200), nullable=False, comment="实践标题")
+    content = Column(Text, nullable=False, comment="具体内容")
+    scenario = Column(Text, nullable=True, comment="适用场景")
+    notes = Column(Text, nullable=True, comment="注意事项")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    
+    # 关联
+    task = relationship("ParseTask", back_populates="best_practices")
