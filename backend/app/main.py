@@ -1,4 +1,5 @@
 """FastAPI 应用入口"""
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
@@ -9,6 +10,7 @@ from app.api import (
     questions_router,
     exams_router,
     mistakes_router,
+    parse_router,
 )
 
 settings = get_settings()
@@ -37,12 +39,14 @@ app.include_router(materials_router, prefix="/api")
 app.include_router(questions_router, prefix="/api")
 app.include_router(exams_router, prefix="/api")
 app.include_router(mistakes_router, prefix="/api")
+app.include_router(parse_router, prefix="/api")
 
 
 @app.on_event("startup")
 def startup():
-    """应用启动时创建数据表"""
+    """应用启动时创建数据表和上传目录"""
     Base.metadata.create_all(bind=engine)
+    os.makedirs(settings.upload_dir, exist_ok=True)
 
 
 @app.get("/")

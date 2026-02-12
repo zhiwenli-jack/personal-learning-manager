@@ -4,6 +4,7 @@ from app.api.materials import router as materials_router
 from app.api.questions import router as questions_router
 from app.api.exams import router as exams_router
 from app.api.mistakes import router as mistakes_router
+from app.api.parse import router as parse_router
 
 __all__ = [
     "directions_router",
@@ -11,4 +12,5 @@ __all__ = [
     "questions_router",
     "exams_router",
     "mistakes_router",
+    "parse_router",
 ]

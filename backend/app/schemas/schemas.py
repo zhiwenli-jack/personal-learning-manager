@@ -187,3 +187,78 @@ class MistakeUpdate(BaseModel):
     """更新错题"""
     mastered: Optional[bool] = None
     review_count: Optional[int] = None
+
+
+# ============ 知识解析 Schemas ============
+
+class ParseTextRequest(BaseModel):
+    """解析纯文本请求"""
+    title: str
+    text: str
+    direction_id: Optional[int] = None
+
+
+class ParseUrlRequest(BaseModel):
+    """解析 URL 请求"""
+    title: str
+    url: str
+    direction_id: Optional[int] = None
+
+
+class KnowledgePointResponse(BaseModel):
+    """知识点响应"""
+    id: int
+    task_id: int
+    name: str
+    description: str
+    importance: int
+    category: Optional[str] = None
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BestPracticeResponse(BaseModel):
+    """最佳实践响应"""
+    id: int
+    task_id: int
+    title: str
+    content: str
+    scenario: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TaskListResponse(BaseModel):
+    """解析任务列表响应"""
+    id: int
+    direction_id: Optional[int] = None
+    title: str
+    source_type: str
+    summary: Optional[str] = None
+    status: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ParseTaskResponse(BaseModel):
+    """解析任务详情响应"""
+    id: int
+    direction_id: Optional[int] = None
+    title: str
+    source_type: str
+    source_content: str
+    raw_text: Optional[str] = None
+    summary: Optional[str] = None
+    status: str
+    error_message: Optional[str] = None
+    knowledge_points: list[KnowledgePointResponse] = []
+    best_practices: list[BestPracticeResponse] = []
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    model_config = ConfigDict(from_attributes=True)
