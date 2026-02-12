@@ -242,106 +242,201 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.exam-taking-page {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
 .exam-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1.25rem;
+  background: var(--gradient-card);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  animation: slideDown 0.4s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .exam-info {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.exam-info span {
+  font-weight: 500;
+  color: var(--color-text-primary);
 }
 
 .timer {
-  color: #ef5350;
-  font-weight: bold;
+  color: var(--color-error);
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-error-bg);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.timer::before {
+  content: '⏱';
 }
 
 .progress-bar {
-  height: 6px;
-  background: #333;
-  border-radius: 3px;
+  height: 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .progress {
   height: 100%;
-  background: #4fc3f7;
-  transition: width 0.3s;
+  background: var(--gradient-primary);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
 }
 
 .question-card {
-  min-height: 300px;
+  min-height: 320px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .question-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .question-type {
-  color: #4fc3f7;
-  font-weight: 500;
+  color: var(--color-accent-primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.375rem 0.875rem;
+  background: var(--color-accent-glow);
+  border-radius: 20px;
 }
 
 .difficulty {
-  color: #ffca28;
+  color: var(--color-warning);
+  font-weight: 600;
+  font-size: 0.9rem;
 }
 
 .question-content {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   line-height: 1.8;
   margin-bottom: 1.5rem;
+  color: var(--color-text-primary);
+  font-weight: 500;
 }
 
 .options {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.875rem;
 }
 
 .option-item {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: #16213e;
-  border-radius: 8px;
+  gap: 0.875rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all var(--transition-base);
   border: 2px solid transparent;
+  position: relative;
+}
+
+.option-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 0;
+  background: var(--gradient-primary);
+  transition: height var(--transition-base);
+  border-radius: 0 4px 4px 0;
 }
 
 .option-item:hover {
-  background: #1a2744;
+  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--color-border);
+  transform: translateX(4px);
+}
+
+.option-item:hover::before {
+  height: 60%;
 }
 
 .option-item.selected {
-  border-color: #4fc3f7;
-  background: rgba(79, 195, 247, 0.1);
+  border-color: var(--color-accent-primary);
+  background: rgba(99, 102, 241, 0.12);
+  transform: translateX(4px);
+}
+
+.option-item.selected::before {
+  height: 100%;
 }
 
 .option-item input {
-  margin-top: 2px;
+  margin-top: 3px;
+  accent-color: var(--color-accent-primary);
+  cursor: pointer;
 }
 
 .option-label {
-  font-weight: bold;
-  color: #4fc3f7;
+  font-weight: 700;
+  color: var(--color-accent-primary);
+  font-size: 1rem;
 }
 
 .answer-input textarea {
-  min-height: 150px;
+  min-height: 180px;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 .exam-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #333;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+  flex-wrap: wrap;
+  gap: 1.5rem;
 }
 
 .question-nav {
@@ -349,36 +444,72 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: center;
+  flex: 1;
 }
 
 .nav-dot {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #333;
+  background: var(--color-bg-tertiary);
+  border: 2px solid var(--color-border);
   cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.3s;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  transition: all var(--transition-base);
 }
 
 .nav-dot:hover {
-  background: #444;
+  border-color: var(--color-accent-primary);
+  color: var(--color-text-primary);
+  transform: scale(1.1);
 }
 
 .nav-dot.active {
-  background: #4fc3f7;
-  color: #1a1a2e;
+  background: var(--gradient-primary);
+  border-color: var(--color-accent-primary);
+  color: white;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
 }
 
 .nav-dot.answered {
-  background: #66bb6a;
+  background: var(--color-success);
+  border-color: var(--color-success);
   color: white;
 }
 
 .nav-dot.active.answered {
-  background: #4fc3f7;
+  background: var(--gradient-primary);
+  border-color: var(--color-accent-primary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .exam-taking-page {
+    padding: 1rem;
+  }
+  
+  .exam-footer {
+    flex-direction: column;
+  }
+  
+  .exam-footer .btn {
+    width: 100%;
+  }
+  
+  .question-nav {
+    order: -1;
+    width: 100%;
+  }
+  
+  .nav-dot {
+    width: 32px;
+    height: 32px;
+    font-size: 0.85rem;
+  }
 }
 </style>

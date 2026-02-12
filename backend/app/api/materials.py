@@ -7,6 +7,7 @@ from app.models import Material, MaterialStatus, Direction, Question, QuestionTy
 from app.schemas import MaterialCreate, MaterialResponse
 from app.services import qwen_service
 import json
+import logging
 
 router = APIRouter(prefix="/materials", tags=["学习资料"])
 
@@ -84,18 +85,22 @@ async def create_material(
     db: Session = Depends(get_db)
 ):
     """上传资料，立即处理（同步执行）"""
-    # 检查方向是否存在
-    direction = db.query(Direction).filter(Direction.id == data.direction_id).first()
-    if not direction:
-        raise HTTPException(status_code=404, detail="学习方向不存在")
-    
-    material = Material(**data.model_dump())
-    db.add(material)
-    db.commit()
-    db.refresh(material)
-    
-    # 立即同步处理：提炼知识点并生成题目
     try:
+        # 检查方向是否存在
+        direction = db.query(Direction).filter(Direction.id == data.direction_id).first()
+        if not direction:
+            raise HTTPException(status_code=404, detail="学习方向不存在")
+        
+        # 检查API密钥是否配置
+        if not qwen_service.api_key:
+            raise HTTPException(status_code=500, detail="API密钥未配置，请联系管理员设置QWEN_API_KEY")
+        
+        material = Material(**data.model_dump())
+        db.add(material)
+        db.commit()
+        db.refresh(material)
+        
+        # 立即同步处理：提炼知识点并生成题目
         direction_name = direction.name if direction else "通用"
         
         # 1. 提炼知识点
@@ -133,13 +138,25 @@ async def create_material(
         db.commit()
         db.refresh(material)
         
+    except HTTPException:
+        # 重新抛出HTTP异常，不需要额外处理
+        raise
     except Exception as e:
-        material.status = MaterialStatus.FAILED
-        db.commit()
-        db.refresh(material)
+        # 捕获所有其他异常并记录
+        logger = logging.getLogger(__name__)
+        logger.error(f"处理资料失败 [ID:{material.id if 'material' in locals() else 'unknown'}]: {str(e)}", exc_info=True)
         print(f"处理资料失败: {e}")
         import traceback
         traceback.print_exc()
+        
+        # 更新数据库状态
+        if 'material' in locals():
+            material.status = MaterialStatus.FAILED
+            db.commit()
+            db.refresh(material)
+        else:
+            # 如果材料创建失败，可能没有material变量
+            raise HTTPException(status_code=500, detail=f"创建资料失败: {str(e)}")
     
     return material
 
@@ -149,36 +166,38 @@ async def get_material_progress(
     material_id: int,
     db: Session = Depends(get_db)
 ):
-    """获取资料处理进度（SSE流式返回）"""
+    """获取资料处理进度（SSE流）"""
     material = db.query(Material).filter(Material.id == material_id).first()
     if not material:
         raise HTTPException(status_code=404, detail="资料不存在")
     
-    direction = db.query(Direction).filter(Direction.id == material.direction_id).first()
-    direction_name = direction.name if direction else "通用"
+    # 如果已经处理完成，直接返回
+    if material.status != MaterialStatus.PENDING:
+        return StreamingResponse(
+            iter([f"data: {json.dumps({'step': 'completed', 'progress': 100, 'message': '处理完成！', 'material_id': material_id}, ensure_ascii=False)}\n\n"]),
+            media_type="text/event-stream"
+        )
     
+    # 否则返回流
     return StreamingResponse(
-        generate_material_stream(material_id, direction_name, material.content, db),
+        generate_material_stream(material_id, material.direction.name, material.content, db),
         media_type="text/event-stream"
     )
 
 
-@router.get("/{material_id}", response_model=MaterialResponse)
-def get_material(material_id: int, db: Session = Depends(get_db)):
-    """获取资料详情"""
-    material = db.query(Material).filter(Material.id == material_id).first()
-    if not material:
-        raise HTTPException(status_code=404, detail="资料不存在")
-    return material
-
-
 @router.delete("/{material_id}")
-def delete_material(material_id: int, db: Session = Depends(get_db)):
-    """删除资料"""
+def delete_material(
+    material_id: int,
+    db: Session = Depends(get_db)
+):
+    """删除资料及其相关题目"""
     material = db.query(Material).filter(Material.id == material_id).first()
     if not material:
         raise HTTPException(status_code=404, detail="资料不存在")
     
+    # 删除相关的题目
+    db.query(Question).filter(Question.material_id == material_id).delete()
+    # 删除资料本身
     db.delete(material)
     db.commit()
     return {"message": "删除成功"}

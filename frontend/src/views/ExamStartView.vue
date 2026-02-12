@@ -157,72 +157,238 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.exam-start-page {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
 h1 {
-  color: #4fc3f7;
-  margin-bottom: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 2rem;
 }
 
 .exam-form {
-  max-width: 500px;
-  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: var(--gradient-card);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .radio-group {
   display: flex;
   gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .radio-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   cursor: pointer;
+  padding: 0.75rem 1.25rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  flex: 1;
+  min-width: 120px;
 }
 
-.radio-item input {
-  width: 18px;
-  height: 18px;
+.radio-item:hover {
+  border-color: var(--color-accent-primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.radio-item input[type="radio"] {
+  width: 20px;
+  height: 20px;
   cursor: pointer;
+  accent-color: var(--color-accent-primary);
+}
+
+.radio-item input[type="radio"]:checked + span {
+  color: var(--color-accent-primary);
+  font-weight: 600;
+}
+
+.radio-item span {
+  color: var(--color-text-secondary);
+  transition: color var(--transition-fast);
 }
 
 .btn-lg {
   width: 100%;
-  padding: 1rem;
+  padding: 1rem 2rem;
   font-size: 1.1rem;
-  margin-top: 1rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  transition: all var(--transition-base);
+}
+
+.btn-lg:hover {
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-lg:active {
+  transform: translateY(0);
+}
+
+.history-section {
+  animation: slideUp 0.4s ease-out 0.2s backwards;
 }
 
 .history-section h2 {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.history-section h2::before {
+  content: '📊';
+}
+
+.exams-list {
+  display: grid;
+  gap: 1rem;
 }
 
 .exam-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.5rem;
+  transition: all var(--transition-base);
+}
+
+.exam-card:hover {
+  border-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-glow);
+  transform: translateX(5px);
 }
 
 .exam-info {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .direction {
-  font-weight: 500;
-  color: #4fc3f7;
+  font-weight: 600;
+  color: var(--color-accent-primary);
+  font-size: 1rem;
 }
 
 .exam-score {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1.2rem;
-  font-weight: bold;
+  gap: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-right: 1rem;
+}
+
+.exam-score span:not(.grade) {
+  color: var(--color-text-primary);
 }
 
 .grade {
-  color: #66bb6a;
+  color: var(--color-success);
+  padding: 0.25rem 0.75rem;
+  background: var(--color-success-bg);
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+.exam-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.exam-actions .btn {
+  flex-shrink: 0;
+}
+
+/* Tag styles override */
+.exam-card .tag {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  margin: 0;
+}
+
+/* Empty state */
+.empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--color-text-tertiary);
+}
+
+.empty::before {
+  content: '📝';
+  display: block;
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .exam-start-page {
+    padding: 1rem;
+  }
+  
+  .exam-form {
+    padding: 1.5rem;
+  }
+  
+  .radio-item {
+    flex: 1 1 calc(50% - 0.75rem);
+  }
+  
+  .exam-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .exam-info {
+    width: 100%;
+  }
+  
+  .exam-actions {
+    width: 100%;
+  }
+  
+  .exam-actions .btn {
+    flex: 1;
+  }
 }
 </style>

@@ -13,6 +13,12 @@
       </select>
     </div>
 
+    <!-- 警告提示 -->
+    <div v-if="showApiKeyWarning" class="alert alert-warning">
+      <p>⚠️ API密钥未配置</p>
+      <p>请联系管理员设置QWEN_API_KEY，否则无法处理学习资料。</p>
+    </div>
+
     <!-- 资料列表 -->
     <div v-if="loading" class="loading">加载中...</div>
     <div v-else-if="materials.length === 0" class="empty">
@@ -29,7 +35,7 @@
           <h3>{{ m.title }}</h3>
           <span :class="['tag', statusClass(m.status)]">{{ statusText(m.status) }}</span>
         </div>
-        <p class="material-content">{{ m.content.substring(0, 200) }}{{ m.content.length > 200 ? '...' : '' }}</p>
+        <div class="material-content markdown-body" v-html="renderMaterialContent(m.content)"></div>
         
         <!-- 进度条 - 仅在处理中时显示 -->
         <div v-if="m.status === 'pending' && progressData[m.id]" class="progress-section">
@@ -66,6 +72,7 @@
     <div v-if="showAddMaterial" class="modal-overlay" @click.self="showAddMaterial = false">
       <div class="modal modal-lg">
         <h3>上传学习资料</h3>
+
         <div class="form-group">
           <label>学习方向</label>
           <select v-model="newMaterial.direction_id" class="form-control">
@@ -79,12 +86,61 @@
         </div>
         <div class="form-group">
           <label>资料内容</label>
+          <!-- 输入方式切换 -->
+          <div class="input-mode-tabs">
+            <button 
+              :class="['tab-btn', { active: inputMode === 'text' }]" 
+              @click="inputMode = 'text'"
+            >文本输入</button>
+            <button 
+              :class="['tab-btn', { active: inputMode === 'file' }]" 
+              @click="inputMode = 'file'"
+            >上传MD文件</button>
+          </div>
+          <!-- 文本输入模式 -->
           <textarea 
+            v-if="inputMode === 'text'"
             v-model="newMaterial.content" 
             class="form-control" 
             rows="10"
             placeholder="粘贴或输入学习资料内容，系统将自动提炼知识点并生成题目..."
           ></textarea>
+          <!-- MD文件上传模式 -->
+          <div v-else class="file-upload-area">
+            <div 
+              class="drop-zone"
+              :class="{ 'drag-over': isDragOver }"
+              @dragover.prevent="isDragOver = true"
+              @dragleave="isDragOver = false"
+              @drop.prevent="handleFileDrop"
+              @click="fileInput?.click()"
+            >
+              <input 
+                ref="fileInput"
+                type="file" 
+                accept=".md" 
+                style="display: none"
+                @change="handleFileSelect"
+              >
+              <div v-if="!selectedFile" class="drop-hint">
+                <span class="drop-icon">&#128196;</span>
+                <p>点击选择或拖拽 .md 文件到此处</p>
+                <p class="drop-sub">仅支持 Markdown (.md) 文件</p>
+              </div>
+              <div v-else class="file-info">
+                <span class="file-name">{{ selectedFile.name }}</span>
+                <span class="file-size">{{ formatFileSize(selectedFile.size) }}</span>
+                <button class="btn-remove" @click.stop="clearFile">&times;</button>
+              </div>
+            </div>
+            <!-- Markdown 预览 -->
+            <div v-if="newMaterial.content && inputMode === 'file'" class="md-preview">
+              <div class="md-preview-header">
+                <span>内容预览</span>
+              </div>
+              <div class="md-preview-body markdown-body" v-html="previewHtml"></div>
+            </div>
+          </div>
         </div>
         <div class="modal-actions">
           <button class="btn" @click="showAddMaterial = false">取消</button>
@@ -105,6 +161,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { directionsApi, materialsApi } from '@/api'
+import { marked } from 'marked'
 
 const route = useRoute()
 const directions = ref([])
@@ -115,11 +172,23 @@ const showAddMaterial = ref(false)
 const selectedDirection = ref(null)
 const progressData = ref({}) // 存储各资料的进度信息
 const eventSources = ref({}) // 存储SSE连接
+const showApiKeyWarning = ref(false) // 显示API密钥警告
 
 const newMaterial = ref({
   direction_id: null,
   title: '',
   content: ''
+})
+
+const inputMode = ref('text')
+const selectedFile = ref(null)
+const isDragOver = ref(false)
+const fileInput = ref(null)
+
+// Markdown 预览 HTML
+const previewHtml = computed(() => {
+  if (!newMaterial.value.content) return ''
+  return marked(newMaterial.value.content)
 })
 
 const canSubmit = computed(() => {
@@ -150,12 +219,63 @@ const formatTime = (time) => {
   return new Date(time).toLocaleString('zh-CN')
 }
 
+// 渲染资料内容：截取前500字符，解析为Markdown HTML
+const renderMaterialContent = (content) => {
+  if (!content) return ''
+  const truncated = content.length > 500 ? content.substring(0, 500) + '...' : content
+  return marked(truncated)
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+const readMdFile = (file) => {
+  if (!file || !file.name.endsWith('.md')) {
+    alert('请选择 .md 格式的文件')
+    return
+  }
+  selectedFile.value = file
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    newMaterial.value.content = e.target.result
+    // 自动填充标题（去掉 .md 后缀）
+    if (!newMaterial.value.title) {
+      newMaterial.value.title = file.name.replace(/\.md$/, '')
+    }
+  }
+  reader.onerror = () => {
+    alert('文件读取失败，请重试')
+  }
+  reader.readAsText(file, 'UTF-8')
+}
+
+const handleFileSelect = (event) => {
+  const file = event.target.files[0]
+  if (file) readMdFile(file)
+}
+
+const handleFileDrop = (event) => {
+  isDragOver.value = false
+  const file = event.dataTransfer.files[0]
+  if (file) readMdFile(file)
+}
+
+const clearFile = () => {
+  selectedFile.value = null
+  newMaterial.value.content = ''
+  if (fileInput.value) fileInput.value.value = ''
+}
+
 const loadDirections = async () => {
   try {
     const res = await directionsApi.getAll()
     directions.value = res.data
   } catch (e) {
     console.error('加载方向失败:', e)
+    alert('加载学习方向失败: ' + (e.response?.data?.detail || e.message))
   }
 }
 
@@ -164,8 +284,15 @@ const loadMaterials = async () => {
   try {
     const res = await materialsApi.getAll(selectedDirection.value)
     materials.value = res.data
+    // 检查是否有API密钥相关的错误
+    showApiKeyWarning.value = false
   } catch (e) {
     console.error('加载资料失败:', e)
+    // 检查是否是API密钥问题
+    if (e.response?.status === 500 && e.response.data.detail.includes('API密钥')) {
+      showApiKeyWarning.value = true
+    }
+    alert('加载资料失败: ' + (e.response?.data?.detail || e.message))
   } finally {
     loading.value = false
   }
@@ -180,6 +307,8 @@ const addMaterial = async () => {
     
     showAddMaterial.value = false
     newMaterial.value = { direction_id: null, title: '', content: '' }
+    selectedFile.value = null
+    inputMode.value = 'text'
     await loadMaterials()
     
     // 如果状态是pending，启动SSE连接监听进度
@@ -195,7 +324,15 @@ const addMaterial = async () => {
       }
     }, 300)
   } catch (e) {
-    alert('上传失败: ' + (e.response?.data?.detail || e.message))
+    console.error('上传失败:', e)
+    // 检查错误类型
+    if (e.response?.status === 500) {
+      alert('上传失败: ' + (e.response?.data?.detail || '服务器内部错误'))
+    } else if (e.response?.status === 404) {
+      alert('上传失败: ' + (e.response?.data?.detail || '找不到指定资源'))
+    } else {
+      alert('上传失败: ' + (e.response?.data?.detail || e.message))
+    }
   } finally {
     submitting.value = false
   }
@@ -216,112 +353,206 @@ const connectProgressStream = (materialId) => {
       const data = JSON.parse(event.data)
       progressData.value[materialId] = data
       
-      // 如果完成或失败，关闭连接并刷新列表
+      // 如果处理完成，更新资料状态并关闭连接
       if (data.step === 'completed' || data.step === 'error') {
         eventSource.close()
-        delete eventSources.value[materialId]
-        setTimeout(() => {
-          loadMaterials()
-          delete progressData.value[materialId]
-        }, 1000)
+        // 刷新资料列表以更新状态
+        setTimeout(() => loadMaterials(), 500)
       }
     } catch (e) {
       console.error('解析进度数据失败:', e)
     }
   }
   
-  eventSource.onerror = (error) => {
-    console.error('SSE连接错误:', error)
+  eventSource.onerror = (err) => {
+    console.error('SSE连接错误:', err)
     eventSource.close()
-    delete eventSources.value[materialId]
+    // 关闭连接后刷新页面以获取最终状态
+    setTimeout(() => loadMaterials(), 1000)
   }
   
+  // 存储事件源引用，便于后续管理
   eventSources.value[materialId] = eventSource
 }
 
 const deleteMaterial = async (id) => {
-  if (!confirm('确定删除此资料？相关题目也会被删除。')) return
+  if (!confirm('确定要删除这个资料吗？这将同时删除与之关联的所有题目。')) return
+  
   try {
     await materialsApi.delete(id)
     await loadMaterials()
   } catch (e) {
+    console.error('删除失败:', e)
     alert('删除失败: ' + (e.response?.data?.detail || e.message))
   }
 }
 
 onMounted(async () => {
   await loadDirections()
-  // 从URL获取方向筛选
-  if (route.query.direction) {
-    selectedDirection.value = parseInt(route.query.direction)
-  }
   await loadMaterials()
-  
-  // 检查是否有pending状态的资料，启动进度监听
-  materials.value.forEach(m => {
-    if (m.status === 'pending') {
-      connectProgressStream(m.id)
-    }
-  })
 })
 
-// 组件卸载时关闭所有SSE连接
 onUnmounted(() => {
-  Object.values(eventSources.value).forEach(es => es.close())
-  eventSources.value = {}
+  // 组件卸载时关闭所有SSE连接
+  Object.values(eventSources.value).forEach(es => {
+    if (es) es.close()
+  })
 })
 </script>
 
 <style scoped>
+.materials-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .page-header h1 {
-  color: #4fc3f7;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .filter-bar {
   margin-bottom: 1.5rem;
 }
 
-.filter-bar select {
+.filter-bar .form-control {
   max-width: 300px;
 }
 
+.materials-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+}
+
 .material-card {
-  margin-bottom: 1rem;
+  animation: slideUp 0.4s ease-out backwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .material-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
 }
 
 .material-header h3 {
-  color: #4fc3f7;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+  flex: 1;
 }
 
 .material-content {
-  color: #888;
-  font-size: 0.9rem;
   margin-bottom: 1rem;
-  line-height: 1.6;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.7;
 }
 
+.material-content ::v-deep h1,
+.material-content ::v-deep h2,
+.material-content ::v-deep h3 {
+  color: var(--color-text-primary);
+  margin-top: 0.75rem;
+}
+
+.material-content ::v-deep p {
+  margin-bottom: 0.5rem;
+}
+
+/* Progress Styles */
+.progress-section {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.progress-text {
+  color: var(--color-text-secondary);
+}
+
+.progress-percent {
+  font-weight: 600;
+  color: var(--color-accent-primary);
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--gradient-primary);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+/* Key Points */
 .key-points {
-  margin-bottom: 1rem;
+  margin: 1rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
 }
 
 .key-points h4 {
-  font-size: 0.9rem;
-  color: #666;
-  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.key-points h4::before {
+  content: '💡';
 }
 
 .points-list {
@@ -330,19 +561,43 @@ onUnmounted(() => {
   gap: 0.5rem;
 }
 
+/* Tag Styles Override */
+.material-card .tag {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  margin: 0;
+}
+
+.tag-yellow {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.tag-green {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.tag-red {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--color-border);
 }
 
 .time {
-  color: #666;
-  font-size: 0.85rem;
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
 }
 
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -350,74 +605,277 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .modal {
-  background: #1a1a2e;
+  background: var(--gradient-card);
+  backdrop-filter: blur(20px);
   padding: 2rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  animation: scaleIn 0.3s ease-out;
+}
+
+.modal h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 1.5rem;
+}
+
+.modal-lg {
+  max-width: 900px;
   max-height: 90vh;
   overflow-y: auto;
 }
 
-.modal-lg {
-  max-width: 600px;
-}
-
-.modal h3 {
-  margin-bottom: 1.5rem;
-  color: #4fc3f7;
-}
-
-.modal-actions {
+/* Input Mode Tabs */
+.input-mode-tabs {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
-}
-
-/* 进度条样式 */
-.progress-section {
   margin-bottom: 1rem;
-  padding: 1rem;
-  background: #16213e;
-  border-radius: 8px;
+  border-bottom: 1px solid var(--color-border);
+  gap: 0.5rem;
 }
 
-.progress-info {
+.tab-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.tab-btn.active {
+  color: var(--color-accent-primary);
+  border-bottom-color: var(--color-accent-primary);
+}
+
+/* File Upload */
+.file-upload-area {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 2rem;
+  text-align: center;
+  transition: all var(--transition-base);
+}
+
+.drop-zone {
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.drop-zone:hover {
+  border-color: var(--color-accent-primary);
+}
+
+.drop-zone.drag-over {
+  border-color: var(--color-accent-primary);
+  background: rgba(99, 102, 241, 0.05);
+  transform: scale(1.02);
+}
+
+.drop-hint {
+  color: var(--color-text-secondary);
+}
+
+.drop-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+  transition: transform var(--transition-base);
+}
+
+.drop-zone:hover .drop-icon {
+  transform: scale(1.1) rotate(-5deg);
+}
+
+.drop-sub {
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.file-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  padding: 1rem;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
 }
 
-.progress-text {
-  color: #4fc3f7;
-  font-size: 0.9rem;
+.file-name {
+  flex-grow: 1;
+  text-align: left;
+  margin-right: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+  font-weight: 500;
 }
 
-.progress-percent {
-  color: #4fc3f7;
-  font-weight: bold;
+.file-size {
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
 }
 
-.progress-bar {
-  width: 100%;
-  height: 8px;
-  background: #0f1419;
-  border-radius: 4px;
+.btn-remove {
+  background: var(--color-error);
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.btn-remove:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+
+/* Markdown Preview */
+.md-preview {
+  margin-top: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
-.progress-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4fc3f7, #29b6f6);
-  transition: width 0.3s ease;
+.md-preview-header {
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-tertiary);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.md-preview-header::before {
+  content: '📄';
+}
+
+.md-preview-body {
+  padding: 1.5rem;
+  max-height: 350px;
+  overflow-y: auto;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.md-preview-body ::v-deep h1,
+.md-preview-body ::v-deep h2,
+.md-preview-body ::v-deep h3 {
+  color: var(--color-text-primary);
+  margin: 1rem 0 0.5rem;
+}
+
+.md-preview-body ::v-deep p {
+  margin-bottom: 0.75rem;
+}
+
+.md-preview-body ::v-deep ul,
+.md-preview-body ::v-deep ol {
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.md-preview-body ::v-deep code {
+  background: var(--color-bg-tertiary);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.md-preview-body ::v-deep pre {
+  background: var(--color-bg-tertiary);
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+
+/* Alert */
+.alert {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1.5rem;
+  border-left: 4px solid;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.alert-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+.alert::before {
+  content: '⚠️';
+  font-size: 1.25rem;
+}
+
+.alert p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .materials-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .modal-lg {
+    max-width: 100%;
+    margin: 1rem;
+  }
 }
 </style>

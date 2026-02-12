@@ -177,7 +177,7 @@ const typeClass = (type) => {
     true_false: 'tag-green',
     short_answer: 'tag-orange'
   }
-  return map[type] || ''
+  return map[type] || 'tag-gray'
 }
 
 const typeText = (type) => {
@@ -288,19 +288,36 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.questions-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
 .page-header {
   margin-bottom: 1.5rem;
 }
 
 .page-header h1 {
-  color: #4fc3f7;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .filter-bar {
   display: flex;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
   flex-wrap: wrap;
+  padding: 1rem;
+  background: var(--gradient-card);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
 }
 
 .filter-bar select {
@@ -309,7 +326,19 @@ onMounted(async () => {
 }
 
 .question-card {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  animation: slideUp 0.4s ease-out backwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .question-header {
@@ -317,14 +346,17 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #333;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .header-left {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .header-actions {
@@ -333,14 +365,15 @@ onMounted(async () => {
 }
 
 .question-content {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .question-text {
   font-size: 1.1rem;
-  color: #e0e0e0;
-  margin-bottom: 1rem;
-  line-height: 1.6;
+  color: var(--color-text-primary);
+  margin-bottom: 1.25rem;
+  line-height: 1.7;
+  font-weight: 500;
 }
 
 .options-list {
@@ -348,60 +381,81 @@ onMounted(async () => {
 }
 
 .option-item {
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-  background: #16213e;
-  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  align-items: flex-start;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.option-item:hover {
+  border-color: var(--color-border);
+  background: rgba(99, 102, 241, 0.05);
 }
 
 .option-label {
-  color: #4fc3f7;
-  font-weight: bold;
+  color: var(--color-accent-primary);
+  font-weight: 700;
   min-width: 30px;
+  flex-shrink: 0;
 }
 
 .answer-section {
-  padding: 0.75rem;
-  background: #16213e;
-  border-radius: 4px;
-  margin-bottom: 0.75rem;
+  padding: 1rem;
+  background: var(--color-success-bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: 1rem;
+  border-left: 4px solid var(--color-success);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .answer-section strong {
-  color: #4fc3f7;
+  color: var(--color-success);
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .answer-text {
-  color: #81c784;
-  font-weight: 500;
+  color: var(--color-success);
+  font-weight: 600;
+  font-size: 1.05rem;
 }
 
 .explanation-section {
-  padding: 0.75rem;
-  background: #1a1a2e;
-  border-radius: 4px;
-  border-left: 3px solid #4fc3f7;
+  padding: 1rem;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--color-accent-primary);
 }
 
 .explanation-section strong {
-  color: #4fc3f7;
+  color: var(--color-accent-primary);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.5rem;
 }
 
 .rating-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   padding-top: 1rem;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--color-border);
+  flex-wrap: wrap;
 }
 
 .rating-label {
-  color: #888;
-  margin-right: 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
 }
 
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -409,47 +463,56 @@ onMounted(async () => {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .modal {
-  background: #1a1a2e;
+  background: var(--gradient-card);
+  backdrop-filter: blur(20px);
   padding: 2rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-}
-
-.modal-lg {
-  max-width: 700px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  animation: scaleIn 0.3s ease-out;
 }
 
 .modal h3 {
   margin-bottom: 1.5rem;
-  color: #4fc3f7;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.modal-lg {
+  max-width: 750px;
 }
 
 .option-edit {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .option-edit .option-label {
-  color: #4fc3f7;
-  font-weight: bold;
+  color: var(--color-accent-primary);
+  font-weight: 700;
   min-width: 30px;
+  flex-shrink: 0;
 }
 
 .form-hint {
   display: block;
-  color: #888;
+  color: var(--color-text-tertiary);
   font-size: 0.85rem;
   margin-top: 0.25rem;
 }
@@ -457,7 +520,34 @@ onMounted(async () => {
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
+  gap: 0.75rem;
   margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .question-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .header-left {
+    width: 100%;
+  }
+  
+  .header-actions {
+    width: 100%;
+  }
+  
+  .header-actions .btn {
+    flex: 1;
+  }
+  
+  .modal-lg {
+    max-width: 100%;
+    margin: 1rem;
+  }
 }
 </style>

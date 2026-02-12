@@ -111,15 +111,63 @@ onMounted(loadResult)
 </script>
 
 <style scoped>
+.exam-result-page {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
 .result-summary {
   text-align: center;
-  padding: 2rem;
-  margin-bottom: 2rem;
+  padding: 3rem 2rem;
+  margin-bottom: 2.5rem;
+  background: var(--gradient-card);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  animation: slideDown 0.5s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.result-summary::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.05) 0%, transparent 50%);
+  animation: rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .result-summary h1 {
-  color: #4fc3f7;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin-bottom: 1.5rem;
+  font-size: 2rem;
+  font-weight: 800;
+  position: relative;
+  z-index: 1;
 }
 
 .score-display {
@@ -127,62 +175,97 @@ onMounted(loadResult)
   align-items: baseline;
   justify-content: center;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
 }
 
 .score {
-  font-size: 4rem;
-  font-weight: bold;
-  color: #66bb6a;
+  font-size: 5rem;
+  font-weight: 800;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
 }
 
 .score-label {
-  font-size: 1.5rem;
-  color: #888;
+  font-size: 1.75rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
 }
 
 .grade {
   font-size: 1.5rem;
-  color: #ffca28;
-  margin-bottom: 1.5rem;
+  color: var(--color-warning);
+  margin-bottom: 2rem;
+  font-weight: 600;
+  padding: 0.5rem 1.5rem;
+  background: var(--color-warning-bg);
+  border-radius: 20px;
+  display: inline-block;
+  position: relative;
+  z-index: 1;
 }
 
 .stats {
   display: flex;
   justify-content: center;
   gap: 3rem;
+  position: relative;
+  z-index: 1;
+  flex-wrap: wrap;
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 0.5rem;
 }
 
 .stat-value {
-  font-size: 2rem;
-  font-weight: bold;
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .stat-value.correct {
-  color: #66bb6a;
+  color: var(--color-success);
 }
 
 .stat-value.wrong {
-  color: #ef5350;
+  color: var(--color-error);
 }
 
 .stat-label {
-  color: #888;
+  color: var(--color-text-tertiary);
   font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.answers-section {
+  margin-bottom: 2.5rem;
 }
 
 .answers-section h2 {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.answers-section h2::before {
+  content: '📋';
 }
 
 .answer-card {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  animation: slideUp 0.4s ease-out backwards;
 }
 
 .answer-header {
@@ -190,23 +273,39 @@ onMounted(loadResult)
   align-items: center;
   gap: 1rem;
   margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
 }
 
 .question-num {
-  font-weight: bold;
-  color: #4fc3f7;
+  font-weight: 700;
+  color: var(--color-accent-primary);
+  font-size: 1rem;
 }
 
 .score-badge {
   margin-left: auto;
-  font-weight: bold;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  padding: 0.375rem 0.875rem;
+  background: var(--color-accent-glow);
+  border-radius: 12px;
 }
 
 .question-content {
-  background: #16213e;
-  padding: 1rem;
-  border-radius: 6px;
+  background: var(--color-bg-tertiary);
+  padding: 1.25rem;
+  border-radius: var(--radius-md);
   margin-bottom: 1rem;
+  border: 1px solid var(--color-border);
+}
+
+.question-content p {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 .answer-compare {
@@ -217,37 +316,126 @@ onMounted(loadResult)
 }
 
 .your-answer, .correct-answer, .ai-feedback, .explanation {
-  background: #16213e;
-  padding: 1rem;
-  border-radius: 6px;
+  background: var(--color-bg-tertiary);
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
 }
 
 .your-answer label, .correct-answer label, .ai-feedback label, .explanation label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.85rem;
-  color: #888;
-  margin-bottom: 0.5rem;
+  font-weight: 600;
+  margin-bottom: 0.625rem;
+}
+
+.your-answer label::before {
+  content: '✏️';
+}
+
+.correct-answer label::before {
+  content: '✓';
+}
+
+.ai-feedback label::before {
+  content: '🤖';
+}
+
+.explanation label::before {
+  content: '💡';
+}
+
+.your-answer label {
+  color: var(--color-text-secondary);
+}
+
+.correct-answer label {
+  color: var(--color-success);
+}
+
+.ai-feedback label {
+  color: var(--color-accent-primary);
+}
+
+.explanation label {
+  color: var(--color-accent-primary);
+}
+
+.your-answer p, .correct-answer p, .ai-feedback p, .explanation p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .ai-feedback {
-  border-left: 3px solid #4fc3f7;
+  border-left: 4px solid var(--color-accent-primary);
   margin-bottom: 1rem;
 }
 
 .explanation {
-  border-left: 3px solid #66bb6a;
+  border-left: 4px solid var(--color-success);
 }
 
 .actions {
   display: flex;
   gap: 1rem;
   justify-content: center;
-  margin-top: 2rem;
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-border);
+  flex-wrap: wrap;
 }
 
+.actions .btn {
+  min-width: 140px;
+}
+
+/* Tag override */
+.answer-header .tag {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  margin: 0;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
+  .exam-result-page {
+    padding: 1rem;
+  }
+  
+  .result-summary {
+    padding: 2rem 1.5rem;
+  }
+  
+  .score {
+    font-size: 3.5rem;
+  }
+  
+  .score-label {
+    font-size: 1.25rem;
+  }
+  
+  .stats {
+    gap: 1.5rem;
+  }
+  
+  .stat-value {
+    font-size: 1.75rem;
+  }
+  
   .answer-compare {
     grid-template-columns: 1fr;
+  }
+  
+  .actions {
+    flex-direction: column;
+  }
+  
+  .actions .btn {
+    width: 100%;
   }
 }
 </style>
