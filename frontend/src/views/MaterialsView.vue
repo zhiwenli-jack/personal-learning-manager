@@ -2,10 +2,23 @@
   <div class="materials-page">
     <div class="page-header">
       <h1>资料管理</h1>
-      <button class="btn btn-primary" @click="showAddMaterial = true">上传资料</button>
+      <button v-if="activeTab === 'materials'" class="btn btn-primary" @click="showAddMaterial = true">上传资料</button>
     </div>
 
-    <!-- 方向筛选 -->
+    <!-- Tab 切换 -->
+    <div class="page-tabs">
+      <button 
+        :class="['page-tab-btn', { active: activeTab === 'materials' }]" 
+        @click="activeTab = 'materials'"
+      >资料管理</button>
+      <button 
+        :class="['page-tab-btn', { active: activeTab === 'parse' }]" 
+        @click="activeTab = 'parse'"
+      >知识解析</button>
+    </div>
+
+    <!-- ============ 资料管理 Tab ============ -->
+    <div v-if="activeTab === 'materials'">
     <div class="filter-bar">
       <select v-model="selectedDirection" class="form-control" @change="loadMaterials">
         <option :value="null">全部方向</option>
@@ -154,13 +167,233 @@
         </div>
       </div>
     </div>
+    </div>
+
+    <!-- ============ 知识解析 Tab ============ -->
+    <div v-if="activeTab === 'parse'" class="parse-tab">
+      <!-- 方向筛选 -->
+      <div class="filter-bar">
+        <select v-model="parseSelectedDirection" class="form-control" @change="loadParseTasks">
+          <option :value="null">全部方向</option>
+          <option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option>
+        </select>
+      </div>
+
+      <!-- 解析表单 -->
+      <div class="card parse-form-card">
+        <h3>新建解析任务</h3>
+        <div class="form-group">
+          <label>学习方向（可选）</label>
+          <select v-model="parseForm.direction_id" class="form-control">
+            <option :value="null">不指定方向</option>
+            <option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>资料标题</label>
+          <input v-model="parseForm.title" class="form-control" placeholder="如：Python 装饰器详解">
+        </div>
+
+        <!-- 输入模式切换 -->
+        <div class="input-mode-tabs">
+          <button 
+            :class="['tab-btn', { active: parseInputMode === 'text' }]" 
+            @click="switchParseMode('text')"
+          >文本输入</button>
+          <button 
+            :class="['tab-btn', { active: parseInputMode === 'file' }]" 
+            @click="switchParseMode('file')"
+          >上传文件</button>
+          <button 
+            :class="['tab-btn', { active: parseInputMode === 'url' }]" 
+            @click="switchParseMode('url')"
+          >网页链接</button>
+        </div>
+
+        <!-- 文本输入模式 -->
+        <div v-if="parseInputMode === 'text'" class="form-group">
+          <textarea 
+            v-model="parseForm.text" 
+            class="form-control" 
+            rows="8"
+            placeholder="粘贴或输入要解析的学习资料内容..."
+          ></textarea>
+        </div>
+
+        <!-- 文件上传模式 -->
+        <div v-if="parseInputMode === 'file'" class="form-group">
+          <div class="file-upload-area">
+            <div 
+              class="drop-zone"
+              :class="{ 'drag-over': parseIsDragOver }"
+              @dragover.prevent="parseIsDragOver = true"
+              @dragleave="parseIsDragOver = false"
+              @drop.prevent="handleParseFileDrop"
+              @click="parseFileInput?.click()"
+            >
+              <input 
+                ref="parseFileInput"
+                type="file" 
+                accept=".pdf,.docx,.md,.txt" 
+                style="display: none"
+                @change="handleParseFileSelect"
+              >
+              <div v-if="!parseForm.file" class="drop-hint">
+                <span class="drop-icon">&#128196;</span>
+                <p>点击选择或拖拽文件到此处</p>
+                <p class="drop-sub">支持 .pdf, .docx, .md, .txt 格式</p>
+              </div>
+              <div v-else class="file-info">
+                <span class="file-name">{{ parseForm.file.name }}</span>
+                <span class="file-size">{{ formatFileSize(parseForm.file.size) }}</span>
+                <button class="btn-remove" @click.stop="clearParseFile">&times;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- URL 输入模式 -->
+        <div v-if="parseInputMode === 'url'" class="form-group">
+          <input 
+            v-model="parseForm.url" 
+            class="form-control" 
+            placeholder="https://example.com/article"
+          >
+        </div>
+
+        <button 
+          class="btn btn-primary" 
+          @click="submitParseTask" 
+          :disabled="!canSubmitParse || parseSubmitting"
+        >
+          {{ parseSubmitting ? '解析中...' : '开始解析' }}
+        </button>
+      </div>
+
+      <!-- 解析任务列表 -->
+      <h3 class="section-title" v-if="!parseLoading">解析记录</h3>
+      <div v-if="parseLoading" class="loading">加载中...</div>
+      <div v-else-if="parseTasks.length === 0" class="empty">
+        暂无解析任务，请创建新任务
+      </div>
+      <div v-else class="parse-tasks-list">
+        <div 
+          v-for="task in parseTasks" 
+          :key="task.id" 
+          class="card task-card"
+          @click="showTaskDetailFn(task.id)"
+        >
+          <div class="task-header">
+            <h3>{{ task.title }}</h3>
+            <span :class="['tag', parseStatusClass(task.status)]">
+              {{ parseStatusText(task.status) }}
+            </span>
+          </div>
+          <div class="task-meta">
+            <span class="tag tag-blue">{{ parseSourceText(task.source_type) }}</span>
+            <span class="time">{{ formatTime(task.created_at) }}</span>
+          </div>
+          <div v-if="task.summary" class="task-summary">
+            {{ task.summary }}
+          </div>
+          <div class="card-footer">
+            <button class="btn btn-sm" @click.stop="showTaskDetailFn(task.id)">查看详情</button>
+            <button class="btn btn-sm btn-danger" @click.stop="deleteParseTask(task.id)">删除</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 任务详情弹窗 -->
+      <div v-if="showTaskDetailModal" class="modal-overlay" @click.self="showTaskDetailModal = false">
+        <div class="modal modal-lg">
+          <div class="modal-detail-header">
+            <h3>{{ taskDetail?.title }}</h3>
+            <button class="btn-close" @click="showTaskDetailModal = false">&times;</button>
+          </div>
+          
+          <div v-if="taskDetail" class="task-detail-content">
+            <!-- 基本信息 -->
+            <div class="detail-section">
+              <h4>基本信息</h4>
+              <div class="info-grid">
+                <div class="info-row">
+                  <span class="info-label">来源类型</span>
+                  <span class="tag tag-blue">{{ parseSourceText(taskDetail.source_type) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">状态</span>
+                  <span :class="['tag', parseStatusClass(taskDetail.status)]">
+                    {{ parseStatusText(taskDetail.status) }}
+                  </span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">创建时间</span>
+                  <span>{{ formatTime(taskDetail.created_at) }}</span>
+                </div>
+              </div>
+              <div v-if="taskDetail.summary" class="detail-summary">
+                <span class="info-label">摘要</span>
+                <p>{{ taskDetail.summary }}</p>
+              </div>
+            </div>
+
+            <!-- 知识点列表 -->
+            <div v-if="taskDetail.knowledge_points?.length" class="detail-section">
+              <h4>知识点 ({{ taskDetail.knowledge_points.length }})</h4>
+              <div class="knowledge-points-list">
+                <div 
+                  v-for="kp in taskDetail.knowledge_points" 
+                  :key="kp.id" 
+                  class="knowledge-point-item"
+                >
+                  <div class="kp-header">
+                    <span class="kp-name">{{ kp.name }}</span>
+                    <span class="tag tag-blue">重要度 {{ kp.importance }}/5</span>
+                    <span v-if="kp.category" class="tag tag-purple">{{ kp.category }}</span>
+                  </div>
+                  <p class="kp-description">{{ kp.description }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 最佳实践列表 -->
+            <div v-if="taskDetail.best_practices?.length" class="detail-section">
+              <h4>最佳实践 ({{ taskDetail.best_practices.length }})</h4>
+              <div class="best-practices-list">
+                <div 
+                  v-for="bp in taskDetail.best_practices" 
+                  :key="bp.id" 
+                  class="best-practice-item"
+                >
+                  <h5>{{ bp.title }}</h5>
+                  <p class="bp-content">{{ bp.content }}</p>
+                  <div v-if="bp.scenario" class="bp-extra">
+                    <strong>适用场景：</strong>{{ bp.scenario }}
+                  </div>
+                  <div v-if="bp.notes" class="bp-extra">
+                    <strong>注意事项：</strong>{{ bp.notes }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 错误信息 -->
+            <div v-if="taskDetail.error_message" class="detail-section">
+              <h4>错误信息</h4>
+              <div class="error-message">{{ taskDetail.error_message }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { directionsApi, materialsApi } from '@/api'
+import { directionsApi, materialsApi, parseApi } from '@/api'
 import { marked } from 'marked'
 
 const route = useRoute()
@@ -184,6 +417,28 @@ const inputMode = ref('text')
 const selectedFile = ref(null)
 const isDragOver = ref(false)
 const fileInput = ref(null)
+
+// ============ Tab 切换 ============
+const activeTab = ref('materials')
+
+// ============ 知识解析相关 ============
+const parseSelectedDirection = ref(null)
+const parseLoading = ref(false)
+const parseSubmitting = ref(false)
+const parseTasks = ref([])
+const parseInputMode = ref('text')
+const parseIsDragOver = ref(false)
+const parseFileInput = ref(null)
+const showTaskDetailModal = ref(false)
+const taskDetail = ref(null)
+
+const parseForm = ref({
+  direction_id: null,
+  title: '',
+  text: '',
+  file: null,
+  url: ''
+})
 
 // Markdown 预览 HTML
 const previewHtml = computed(() => {
@@ -387,9 +642,155 @@ const deleteMaterial = async (id) => {
   }
 }
 
+// ============ 知识解析：计算属性 ============
+const canSubmitParse = computed(() => {
+  if (!parseForm.value.title) return false
+  switch (parseInputMode.value) {
+    case 'text': return parseForm.value.text.trim().length > 0
+    case 'file': return parseForm.value.file !== null
+    case 'url': return parseForm.value.url.trim().length > 0
+    default: return false
+  }
+})
+
+// ============ 知识解析：数据加载 ============
+const loadParseTasks = async () => {
+  parseLoading.value = true
+  try {
+    const res = await parseApi.getTasks({ direction_id: parseSelectedDirection.value })
+    parseTasks.value = res.data
+  } catch (e) {
+    console.error('加载解析任务失败:', e)
+    alert('加载解析任务失败: ' + (e.response?.data?.detail || e.message))
+  } finally {
+    parseLoading.value = false
+  }
+}
+
+// ============ 知识解析：表单提交 ============
+const submitParseTask = async () => {
+  if (!canSubmitParse.value) return
+  parseSubmitting.value = true
+  try {
+    switch (parseInputMode.value) {
+      case 'text':
+        await parseApi.parseText({
+          title: parseForm.value.title,
+          text: parseForm.value.text,
+          direction_id: parseForm.value.direction_id
+        })
+        break
+      case 'file':
+        await parseApi.parseFile(
+          parseForm.value.title,
+          parseForm.value.file,
+          parseForm.value.direction_id
+        )
+        break
+      case 'url':
+        await parseApi.parseUrl({
+          title: parseForm.value.title,
+          url: parseForm.value.url,
+          direction_id: parseForm.value.direction_id
+        })
+        break
+    }
+    parseForm.value = { direction_id: null, title: '', text: '', file: null, url: '' }
+    parseInputMode.value = 'text'
+    if (parseFileInput.value) parseFileInput.value.value = ''
+    await loadParseTasks()
+  } catch (e) {
+    console.error('提交解析任务失败:', e)
+    alert('提交失败: ' + (e.response?.data?.detail || e.message))
+  } finally {
+    parseSubmitting.value = false
+  }
+}
+
+// ============ 知识解析：输入模式切换 ============
+const switchParseMode = (mode) => {
+  parseInputMode.value = mode
+}
+
+// ============ 知识解析：文件处理 ============
+const handleParseFileSelect = (event) => {
+  const file = event.target.files[0]
+  if (file) validateAndSetParseFile(file)
+}
+
+const handleParseFileDrop = (event) => {
+  parseIsDragOver.value = false
+  const file = event.dataTransfer.files[0]
+  if (file) validateAndSetParseFile(file)
+}
+
+const validateAndSetParseFile = (file) => {
+  const allowedExtensions = ['.pdf', '.docx', '.md', '.txt']
+  const fileExt = '.' + file.name.split('.').pop().toLowerCase()
+  if (!allowedExtensions.includes(fileExt)) {
+    alert('不支持的文件格式，请上传 .pdf, .docx, .md 或 .txt 文件')
+    return
+  }
+  parseForm.value.file = file
+  if (!parseForm.value.title) {
+    parseForm.value.title = file.name.replace(/\.[^/.]+$/, '')
+  }
+}
+
+const clearParseFile = () => {
+  parseForm.value.file = null
+  if (parseFileInput.value) parseFileInput.value.value = ''
+}
+
+// ============ 知识解析：任务详情与删除 ============
+const showTaskDetailFn = async (taskId) => {
+  try {
+    const res = await parseApi.getTaskDetail(taskId)
+    taskDetail.value = res.data
+    showTaskDetailModal.value = true
+  } catch (e) {
+    console.error('加载任务详情失败:', e)
+    alert('加载详情失败: ' + (e.response?.data?.detail || e.message))
+  }
+}
+
+const deleteParseTask = async (taskId) => {
+  if (!confirm('确定要删除这个解析任务吗？')) return
+  try {
+    await parseApi.deleteTask(taskId)
+    await loadParseTasks()
+  } catch (e) {
+    console.error('删除任务失败:', e)
+    alert('删除失败: ' + (e.response?.data?.detail || e.message))
+  }
+}
+
+// ============ 知识解析：状态映射 ============
+const parseStatusClass = (status) => {
+  const map = { pending: 'tag-yellow', processing: 'tag-yellow', completed: 'tag-green', failed: 'tag-red' }
+  return map[status] || ''
+}
+
+const parseStatusText = (status) => {
+  const map = { pending: '待处理', processing: '处理中', completed: '已完成', failed: '失败' }
+  return map[status] || status
+}
+
+const parseSourceText = (sourceType) => {
+  const map = { text: '文本', file: '文件', url: '网页' }
+  return map[sourceType] || sourceType
+}
+
 onMounted(async () => {
   await loadDirections()
   await loadMaterials()
+})
+
+// 切换到知识解析 Tab 时自动加载任务列表
+watch(activeTab, (newTab) => {
+  if (newTab === 'parse' && parseTasks.value.length === 0) {
+    loadParseTasks()
+  }
 })
 
 onUnmounted(() => {
@@ -877,5 +1278,298 @@ onUnmounted(() => {
     max-width: 100%;
     margin: 1rem;
   }
+
+  .parse-tasks-list {
+    grid-template-columns: 1fr;
+  }
+
+  .page-tabs .page-tab-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* ============ Page Tab System ============ */
+.page-tabs {
+  display: flex;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--color-border);
+  gap: 0.5rem;
+}
+
+.page-tab-btn {
+  padding: 1rem 2rem;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all var(--transition-fast);
+  margin-bottom: -2px;
+}
+
+.page-tab-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.page-tab-btn.active {
+  color: var(--color-accent-primary);
+  border-bottom-color: var(--color-accent-primary);
+}
+
+/* ============ Parse Tab ============ */
+.parse-tab {
+  animation: slideUp 0.4s ease-out;
+}
+
+.parse-form-card {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+}
+
+.parse-form-card h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  color: var(--color-text-primary);
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 1.5rem;
+}
+
+/* Parse Tasks List */
+.parse-tasks-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+}
+
+.task-card {
+  cursor: pointer;
+  transition: all var(--transition-base);
+  animation: slideUp 0.4s ease-out backwards;
+}
+
+.task-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+  gap: 1rem;
+}
+
+.task-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  flex: 1;
+  word-break: break-word;
+}
+
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.task-summary {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ============ Task Detail Modal ============ */
+.modal-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-detail-header h3 {
+  margin: 0;
+  flex: 1;
+  word-break: break-word;
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 2rem;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-close:hover {
+  background: var(--color-error-bg, rgba(239, 68, 68, 0.1));
+  color: var(--color-error);
+}
+
+.task-detail-content {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.detail-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detail-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.detail-section h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.info-label {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.detail-summary {
+  margin-top: 0.75rem;
+}
+
+.detail-summary p {
+  margin: 0.5rem 0 0 0;
+  color: var(--color-text-primary);
+  line-height: 1.7;
+  font-size: 0.95rem;
+}
+
+/* Knowledge Points */
+.knowledge-points-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.knowledge-point-item {
+  background: var(--color-bg-tertiary);
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-accent-primary);
+}
+
+.kp-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.kp-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.kp-description {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Best Practices */
+.best-practices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.best-practice-item {
+  background: var(--color-bg-tertiary);
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-success);
+}
+
+.best-practice-item h5 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.bp-content {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.bp-extra {
+  padding: 0.5rem 0.75rem;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+
+.bp-extra strong {
+  color: var(--color-text-primary);
+  margin-right: 0.25rem;
+}
+
+/* Error Message */
+.error-message {
+  padding: 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 </style>

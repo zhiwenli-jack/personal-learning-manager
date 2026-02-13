@@ -48,4 +48,22 @@ export const mistakesApi = {
   delete: (id) => api.delete(`/mistakes/${id}`)
 }
 
+// 知识解析 API
+export const parseApi = {
+  parseText: (data) => api.post('/parse/text', data),
+  parseFile: (title, file, directionId) => {
+    const formData = new FormData()
+    formData.append('title', title)
+    if (directionId) formData.append('direction_id', directionId)
+    formData.append('file', file)
+    return api.post('/parse/file', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  parseUrl: (data) => api.post('/parse/url', data),
+  getTasks: (params) => api.get('/parse/tasks', { params }),
+  getTaskDetail: (taskId) => api.get(`/parse/tasks/${taskId}`),
+  deleteTask: (taskId) => api.delete(`/parse/tasks/${taskId}`)
+}
+
 export default api

@@ -14,6 +14,34 @@ from app.services import qwen_service
 router = APIRouter(prefix="/exams", tags=["测验"])
 
 
+def _resolve_option_text(answer: str, options: list) -> str:
+    """将选项字母(A/B/C/D)或带前缀的答案解析为实际选项文本"""
+    answer = answer.strip()
+    if not options:
+        return answer
+
+    # 已经是选项文本，直接返回
+    for opt in options:
+        if answer == opt.strip():
+            return opt.strip()
+
+    upper = answer.upper()
+
+    # 单字母: "A", "B", "C", "D"
+    if len(upper) == 1 and upper in "ABCDEFGH":
+        idx = ord(upper) - 65
+        if 0 <= idx < len(options):
+            return options[idx].strip()
+
+    # 带分隔符: "A." "A、" "A．" "A:" "A：" 或 "A. xxx"
+    if len(answer) >= 2 and answer[0].upper() in "ABCDEFGH" and answer[1] in ".、．:：":
+        idx = ord(answer[0].upper()) - 65
+        if 0 <= idx < len(options):
+            return options[idx].strip()
+
+    return answer
+
+
 def calculate_grade(score: float) -> str:
     """根据分数计算等级"""
     if score >= 90:
@@ -153,8 +181,24 @@ async def submit_exam(
         
         # 根据题型评分
         if question.type in [QuestionType.SINGLE_CHOICE, QuestionType.MULTI_CHOICE, QuestionType.TRUE_FALSE]:
-            # 客观题：精确匹配
-            is_correct = answer_data.user_answer.strip() == question.answer.strip()
+            # 客观题评分
+            user_ans = answer_data.user_answer.strip()
+            correct_ans = question.answer.strip()
+
+            if question.type == QuestionType.MULTI_CHOICE:
+                # 多选题：将双方都解析为选项文本集合后比较
+                user_parts = [s.strip() for s in user_ans.split(",") if s.strip()]
+                correct_parts = [s.strip() for s in correct_ans.split(",") if s.strip()]
+                if question.options:
+                    user_parts = [_resolve_option_text(p, question.options) for p in user_parts]
+                    correct_parts = [_resolve_option_text(p, question.options) for p in correct_parts]
+                is_correct = set(user_parts) == set(correct_parts)
+            else:
+                # 单选题 / 判断题：解析后比较
+                resolved_user = _resolve_option_text(user_ans, question.options) if question.options else user_ans
+                resolved_correct = _resolve_option_text(correct_ans, question.options) if question.options else correct_ans
+                is_correct = resolved_user == resolved_correct
+
             score = 100.0 if is_correct else 0.0
         else:
             # 主观题：AI评分
