@@ -48,6 +48,19 @@
           <h3>{{ m.title }}</h3>
           <span :class="['tag', statusClass(m.status)]">{{ statusText(m.status) }}</span>
         </div>
+        
+        <!-- 方向编辑 -->
+        <div class="material-direction">
+          <span class="direction-label">学习方向：</span>
+          <select 
+            v-model="m.direction_id" 
+            class="form-control form-control-sm"
+            @change="updateMaterialDirection(m.id, m.direction_id)"
+          >
+            <option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option>
+          </select>
+        </div>
+        
         <div class="material-content markdown-body" v-html="renderMaterialContent(m.content)"></div>
         
         <!-- 进度条 - 仅在处理中时显示 -->
@@ -330,11 +343,34 @@
                   <span class="info-label">创建时间</span>
                   <span>{{ formatTime(taskDetail.created_at) }}</span>
                 </div>
+                <div class="info-row">
+                  <span class="info-label">学习方向</span>
+                  <select 
+                    v-model="taskDetail.direction_id" 
+                    class="form-control form-control-sm"
+                    @change="updateTaskDirection(taskDetail.id, taskDetail.direction_id)"
+                  >
+                    <option :value="null">未指定</option>
+                    <option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option>
+                  </select>
+                </div>
               </div>
               <div v-if="taskDetail.summary" class="detail-summary">
                 <span class="info-label">摘要</span>
                 <p>{{ taskDetail.summary }}</p>
               </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div v-if="taskDetail.status === 'completed'" class="detail-section detail-actions">
+              <button 
+                class="btn btn-primary" 
+                @click="generateQuestionsFromTask(taskDetail.id)"
+                :disabled="!taskDetail.direction_id || generatingQuestions"
+              >
+                {{ generatingQuestions ? '生成中...' : '生成题目' }}
+              </button>
+              <span v-if="!taskDetail.direction_id" class="hint-text">请先选择学习方向</span>
             </div>
 
             <!-- 知识点列表 -->
@@ -431,6 +467,7 @@ const parseIsDragOver = ref(false)
 const parseFileInput = ref(null)
 const showTaskDetailModal = ref(false)
 const taskDetail = ref(null)
+const generatingQuestions = ref(false)
 
 const parseForm = ref({
   direction_id: null,
@@ -762,6 +799,47 @@ const deleteParseTask = async (taskId) => {
   } catch (e) {
     console.error('删除任务失败:', e)
     alert('删除失败: ' + (e.response?.data?.detail || e.message))
+  }
+}
+
+// ============ 更新方向 ============
+const updateMaterialDirection = async (materialId, directionId) => {
+  try {
+    await materialsApi.updateDirection(materialId, directionId)
+  } catch (e) {
+    console.error('更新方向失败:', e)
+    alert('更新方向失败: ' + (e.response?.data?.detail || e.message))
+    await loadMaterials() // 失败后刷新恢复原状态
+  }
+}
+
+const updateTaskDirection = async (taskId, directionId) => {
+  try {
+    await parseApi.updateTaskDirection(taskId, directionId)
+    await loadParseTasks() // 刷新列表
+  } catch (e) {
+    console.error('更新方向失败:', e)
+    alert('更新方向失败: ' + (e.response?.data?.detail || e.message))
+  }
+}
+
+// ============ 从解析任务生成题目 ============
+const generateQuestionsFromTask = async (taskId) => {
+  if (!confirm('确定要基于此解析结果生成题目吗？这将创建一份新的学习资料。')) return
+  
+  generatingQuestions.value = true
+  try {
+    const res = await parseApi.generateQuestions(taskId)
+    alert(`题目生成成功！已创建资料「${res.data.title}」`)
+    showTaskDetailModal.value = false
+    // 切换到资料管理 Tab 并刷新
+    activeTab.value = 'materials'
+    await loadMaterials()
+  } catch (e) {
+    console.error('生成题目失败:', e)
+    alert('生成题目失败: ' + (e.response?.data?.detail || e.message))
+  } finally {
+    generatingQuestions.value = false
   }
 }
 
@@ -1571,5 +1649,40 @@ onUnmounted(() => {
   color: var(--color-error);
   font-size: 0.9rem;
   line-height: 1.6;
+}
+
+/* Material Direction Edit */
+.material-direction {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.direction-label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.form-control-sm {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.875rem;
+  max-width: 200px;
+}
+
+/* Detail Actions */
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.hint-text {
+  font-size: 0.875rem;
+  color: var(--color-text-tertiary);
 }
 </style>

@@ -20,7 +20,8 @@ export const materialsApi = {
   getAll: (directionId) => api.get('/materials', { params: { direction_id: directionId } }),
   create: (data) => api.post('/materials', data),
   get: (id) => api.get(`/materials/${id}`),
-  delete: (id) => api.delete(`/materials/${id}`)
+  delete: (id) => api.delete(`/materials/${id}`),
+  updateDirection: (id, directionId) => api.patch(`/materials/${id}`, { direction_id: directionId })
 }
 
 // 题目 API
@@ -63,7 +64,9 @@ export const parseApi = {
   parseUrl: (data) => api.post('/parse/url', data),
   getTasks: (params) => api.get('/parse/tasks', { params }),
   getTaskDetail: (taskId) => api.get(`/parse/tasks/${taskId}`),
-  deleteTask: (taskId) => api.delete(`/parse/tasks/${taskId}`)
+  deleteTask: (taskId) => api.delete(`/parse/tasks/${taskId}`),
+  updateTaskDirection: (taskId, directionId) => api.patch(`/parse/tasks/${taskId}`, { direction_id: directionId }),
+  generateQuestions: (taskId) => api.post(`/parse/tasks/${taskId}/generate-questions`)
 }
 
 export default api

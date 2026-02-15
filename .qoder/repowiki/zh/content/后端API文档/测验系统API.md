@@ -13,6 +13,13 @@
 - [frontend/src/api/index.js](file://frontend/src/api/index.js)
 </cite>
 
+## 更新摘要
+**变更内容**
+- 增强了答案评估的准确性，新增多种答案格式解析支持
+- 改进了客观题评分机制，支持选项文本解析
+- 优化了多选题答案处理，支持逗号分隔的多个选项
+- 增强了主观题AI评分的反馈质量
+
 ## 目录
 1. [简介](#简介)
 2. [项目结构](#项目结构)
@@ -26,7 +33,7 @@
 10. [附录：API参考与示例](#附录api参考与示例)
 
 ## 简介
-本文件为“测验系统API”的权威文档，覆盖测验全生命周期管理：创建、开始、答题、提交与结果查询；明确定时测验与非定时测验的差异与实现机制；说明测验模板、题目选择策略与随机化选项；给出测验状态管理（待开始、进行中、已完成）的规范；阐述答题提交、自动评分与结果分析的接口设计；并提供并发控制与防作弊机制建议、统计与报告生成的API说明及请求/响应示例。
+本文件为"测验系统API"的权威文档，覆盖测验全生命周期管理：创建、开始、答题、提交与结果查询；明确定时测验与非定时测验的差异与实现机制；说明测验模板、题目选择策略与随机化选项；给出测验状态管理（待开始、进行中、已完成）的规范；阐述答题提交、自动评分与结果分析的接口设计；并提供并发控制与防作弊机制建议、统计与报告生成的API说明及请求/响应示例。
 
 ## 项目结构
 后端采用FastAPI + SQLAlchemy架构，API按功能模块划分，核心模块如下：
@@ -55,18 +62,18 @@ B --> H["AI评分服务<br/>backend/app/services/qwen_service.py"]
 I["前端API封装<br/>frontend/src/api/index.js"] --> A
 ```
 
-图表来源
+**图表来源**
 - [backend/app/main.py](file://backend/app/main.py#L1-L66)
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L240)
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L284)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L1-L90)
 - [backend/app/models/models.py](file://backend/app/models/models.py#L1-L223)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L1-L265)
 - [backend/app/core/database.py](file://backend/app/core/database.py#L1-L38)
 - [backend/app/core/config.py](file://backend/app/core/config.py#L1-L34)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
-- [frontend/src/api/index.js](file://frontend/src/api/index.js#L1-L52)
+- [frontend/src/api/index.js](file://frontend/src/api/index.js#L1-L70)
 
-章节来源
+**章节来源**
 - [backend/app/main.py](file://backend/app/main.py#L1-L66)
 
 ## 核心组件
@@ -83,8 +90,8 @@ I["前端API封装<br/>frontend/src/api/index.js"] --> A
 - AI评分服务
   - 基于通义千问的主观题评分与反馈
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L240)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L284)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L1-L90)
 - [backend/app/models/models.py](file://backend/app/models/models.py#L1-L223)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L1-L265)
@@ -93,7 +100,7 @@ I["前端API封装<br/>frontend/src/api/index.js"] --> A
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
 
 ## 架构总览
-测验系统遵循“API层-服务层-数据层”分层设计：
+测验系统遵循"API层-服务层-数据层"分层设计：
 - API层：FastAPI路由，负责HTTP请求/响应、参数校验与业务编排
 - 服务层：调用AI服务（QwenService）进行主观题评分
 - 数据层：SQLAlchemy ORM模型与数据库会话依赖
@@ -117,8 +124,8 @@ QN --> DB
 DB --> MD
 ```
 
-图表来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L240)
+**图表来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L284)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L1-L90)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
 - [backend/app/core/database.py](file://backend/app/core/database.py#L1-L38)
@@ -144,13 +151,13 @@ stateDiagram-v2
 已完成 --> [*]
 ```
 
-图表来源
+**图表来源**
 - [backend/app/models/models.py](file://backend/app/models/models.py#L42-L46)
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L127-L216)
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L127-L284)
 
-章节来源
+**章节来源**
 - [backend/app/models/models.py](file://backend/app/models/models.py#L30-L46)
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L127-L216)
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L127-L284)
 
 ### 定时测验与非定时测验
 - 区别
@@ -170,12 +177,12 @@ NoLimit --> Save
 Save --> End(["完成"])
 ```
 
-图表来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L47-L87)
+**图表来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L47-L115)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L103-L110)
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L47-L87)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L47-L115)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L103-L110)
 
 ### 题目选择策略与随机化
@@ -195,23 +202,25 @@ D --> E["限制数量为 question_count"]
 E --> F["返回题目集合"]
 ```
 
-图表来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L47-L87)
+**图表来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L47-L115)
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L47-L87)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L47-L115)
 
 ### 答题提交与自动评分
 - 提交流程
   - 校验测验存在性与状态（已完成不可重复提交）
   - 遍历提交的答案，区分客观题与主观题
-  - 客观题：字符串去空格后精确匹配
+  - 客观题：字符串去空格后精确匹配，支持选项文本解析
   - 主观题：调用QwenService.evaluate_answer获取评分与反馈
   - 保存答题记录，错题加入错题本
   - 计算总分、正确数、等级（若启用等级制）
   - 更新测验状态为已完成
 - 结果返回
   - 返回总题数、正确数、得分、等级、各题答题记录
+
+**更新** 增强了答案格式解析的准确性，支持多种答案格式
 
 ```mermaid
 sequenceDiagram
@@ -223,6 +232,7 @@ FE->>API : "POST /api/exams/{id}/submit"
 API->>DB : "查询测验与状态"
 API->>DB : "逐题查询题目类型"
 alt "客观题"
+API->>API : "解析答案格式"
 API->>API : "精确匹配"
 else "主观题"
 API->>SVC : "evaluate_answer"
@@ -233,13 +243,33 @@ API->>DB : "更新测验状态/得分/等级"
 API-->>FE : "返回结果"
 ```
 
-图表来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L127-L216)
+**图表来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L155-L284)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L115-L151)
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L127-L216)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L155-L284)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L115-L151)
+
+### 答案格式解析增强
+- 单选题与判断题答案解析
+  - 支持选项字母格式：A、B、C、D
+  - 支持带分隔符格式：A.、A、、A．、A:、A：或"A. xxx"格式
+  - 自动转换为对应的选项文本
+- 多选题答案解析
+  - 支持逗号分隔的多个选项：A,B,C
+  - 自动解析每个选项并转换为选项文本
+  - 使用集合比较确保顺序无关的正确性
+- 通用解析规则
+  - 忽略大小写差异
+  - 去除前后空格
+  - 支持选项文本与选项字母的双向转换
+
+**新增** 答案格式解析功能显著提升了评分准确性
+
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L17-L42)
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L188-L200)
 
 ### 结果查询与分析
 - 查询结果
@@ -257,11 +287,11 @@ C --> D["统计正确数与总数"]
 D --> F["返回结果"]
 ```
 
-图表来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L219-L239)
+**图表来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L263-L284)
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L219-L239)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L263-L284)
 
 ### 并发控制与防作弊机制
 - 并发控制建议
@@ -273,8 +303,8 @@ D --> F["返回结果"]
   - 后端对提交时间异常（如极短/极长）进行审计
   - 对主观题评分结果保留AI反馈，便于复核
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L127-L216)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L155-L284)
 
 ### 统计与报告生成
 - 当前接口能力
@@ -284,8 +314,8 @@ D --> F["返回结果"]
   - 按方向/时间维度聚合得分与正确率
   - 导出错题清单与知识点掌握情况
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L219-L239)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L263-L284)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L1-L90)
 
 ## 依赖关系分析
@@ -309,8 +339,8 @@ QN --> SC
 QN --> DB
 ```
 
-图表来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L240)
+**图表来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L284)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L1-L90)
 - [backend/app/models/models.py](file://backend/app/models/models.py#L1-L223)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L1-L265)
@@ -318,8 +348,8 @@ QN --> DB
 - [backend/app/core/config.py](file://backend/app/core/config.py#L1-L34)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L240)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L284)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L1-L90)
 - [backend/app/models/models.py](file://backend/app/models/models.py#L1-L223)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L1-L265)
@@ -337,8 +367,8 @@ QN --> DB
   - 提交接口需在事务内完成评分与状态更新，防止脏读
   - 对同一测验的并发提交进行状态检查或加锁
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L127-L216)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L155-L284)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L115-L151)
 
 ## 故障排查指南
@@ -353,12 +383,12 @@ QN --> DB
   - 核对提交答案格式与题型
   - 检查AI服务可用性与网络连通性
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L127-L239)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L155-L284)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L34-L89)
 
 ## 结论
-本测验系统API提供了完整的测验生命周期管理能力，支持定时与非定时两种模式、随机题目抽取、客观与主观混合评分，并通过错题本与结果查询支撑学习分析。建议在生产环境中完善并发控制与防作弊机制，优化随机抽题性能，并扩展统计与报告能力。
+本测验系统API提供了完整的测验生命周期管理能力，支持定时与非定时两种模式、随机题目抽取、客观与主观混合评分，并通过错题本与结果查询支撑学习分析。最新的答案格式解析增强显著提升了评分准确性，支持多种答案格式的智能识别与转换。建议在生产环境中完善并发控制与防作弊机制，优化随机抽题性能，并扩展统计与报告能力。
 
 ## 附录：API参考与示例
 
@@ -382,9 +412,9 @@ QN --> DB
   - 方法：GET /api/exams/{exam_id}/result
   - 响应：测验结果（ExamResult）
 
-章节来源
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L29-L124)
-- [backend/app/api/exams.py](file://backend/app/api/exams.py#L127-L239)
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L57-L153)
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L155-L284)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L103-L169)
 
 ### 题目API
@@ -407,7 +437,7 @@ QN --> DB
   - 方法：DELETE /api/questions/{question_id}
   - 响应：{"message": "删除成功"}
 
-章节来源
+**章节来源**
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L11-L89)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L62-L99)
 
@@ -420,5 +450,21 @@ QN --> DB
   - 请求体示例：{"answers": [{"question_id": 1, "user_answer": "示例答案"}]}
 - 查询结果：GET /api/exams/1/result
 
-章节来源
+**章节来源**
 - [frontend/src/api/index.js](file://frontend/src/api/index.js#L35-L42)
+
+### 答案格式解析示例
+- 单选题答案格式支持
+  - 选项字母：A、B、C、D
+  - 带分隔符：A.、A、、A．、A:、A：或"A. xxx"格式
+  - 自动转换为选项文本
+- 多选题答案格式支持
+  - 逗号分隔：A,B,C
+  - 自动解析为选项文本集合
+  - 集合比较确保顺序无关正确性
+
+**新增** 答案格式解析示例
+
+**章节来源**
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L17-L42)
+- [backend/app/api/exams.py](file://backend/app/api/exams.py#L188-L200)

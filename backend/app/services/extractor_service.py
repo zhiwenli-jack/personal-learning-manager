@@ -33,7 +33,7 @@ class ExtractorService:
         content = await file.read()
 
         if len(content) > settings.max_file_size:
-            raise ValueError(f"文件大小超过限制（最大 {settings.max_file_size // 1024 // 1024}MB）")
+            raise ValueError(f"文件大小超过限制（最大 {settings.max_file_size // 2048 // 2048}MB）")
 
         # 写入临时文件后解析
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:

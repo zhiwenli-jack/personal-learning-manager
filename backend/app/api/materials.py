@@ -1,6 +1,8 @@
 """学习资料 API"""
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import Material, MaterialStatus, Direction, Question, QuestionType
@@ -10,6 +12,11 @@ import json
 import logging
 
 router = APIRouter(prefix="/materials", tags=["学习资料"])
+
+
+class UpdateMaterialDirectionRequest(BaseModel):
+    """更新资料方向请求"""
+    direction_id: int
 
 
 @router.get("", response_model=list[MaterialResponse])
@@ -201,3 +208,25 @@ def delete_material(
     db.delete(material)
     db.commit()
     return {"message": "删除成功"}
+
+
+@router.patch("/{material_id}", response_model=MaterialResponse)
+def update_material_direction(
+    material_id: int,
+    data: UpdateMaterialDirectionRequest,
+    db: Session = Depends(get_db)
+):
+    """更新资料的学习方向"""
+    material = db.query(Material).filter(Material.id == material_id).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="资料不存在")
+    
+    # 验证方向是否存在
+    direction = db.query(Direction).filter(Direction.id == data.direction_id).first()
+    if not direction:
+        raise HTTPException(status_code=404, detail="学习方向不存在")
+    
+    material.direction_id = data.direction_id
+    db.commit()
+    db.refresh(material)
+    return material

@@ -6,15 +6,19 @@
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py)
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py)
 - [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py)
-- [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py)
 - [backend/app/models/models.py](file://backend/app/models/models.py)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py)
 - [backend/app/core/config.py](file://backend/app/core/config.py)
-- [backend/app/api/materials.py](file://backend/app/api/materials.py)
 - [frontend/src/api/index.js](file://frontend/src/api/index.js)
-- [test_api.py](file://test_api.py)
 - [backend/test_full_flow.py](file://backend/test_full_flow.py)
 </cite>
+
+## 更新摘要
+**变更内容**
+- 新增任务管理功能：支持任务列表查询、详情查询与删除操作
+- 增强输入模式：完善文本、文件、URL三种解析模式的实现
+- 完善错误处理：添加详细的输入验证和错误处理机制
+- 优化状态管理：改进任务状态流转和持久化机制
 
 ## 目录
 1. [简介](#简介)
@@ -29,7 +33,7 @@
 10. [附录](#附录)
 
 ## 简介
-本文件为“内容解析API”的权威文档，覆盖文本内容解析、知识点提取与最佳实践总结的完整接口与实现细节。内容包括：
+本文件为"内容解析API"的权威文档，覆盖文本内容解析、知识点提取与最佳实践总结的完整接口与实现细节。内容包括：
 - 支持的输入格式（纯文本、Markdown、HTML等）与输出结构
 - 解析进度报告与实时状态更新机制
 - 请求示例与不同内容类型的解析流程
@@ -37,6 +41,8 @@
 - 解析质量评估与结果验证机制
 - 性能优化建议与大文件处理最佳实践
 - 错误处理与重试机制说明
+
+**更新** 本版本增强了任务管理功能，提供完整的任务生命周期管理能力。
 
 ## 项目结构
 后端采用FastAPI + SQLAlchemy架构，解析API位于路由层，核心解析逻辑由服务层协调，底层依赖AI服务与文本抽取服务。
@@ -59,27 +65,16 @@ FE --> API
 API --> PS
 PS --> ES
 PS --> KS
-KS --> QW
 PS --> DB
 ES --> CFG
 KS --> CFG
 ```
 
-图表来源
+**图表来源**
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L1-L77)
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L1-L163)
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L1-L123)
 - [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py#L1-L114)
-- [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
-- [backend/app/models/models.py](file://backend/app/models/models.py#L171-L223)
-- [backend/app/core/config.py](file://backend/app/core/config.py#L1-L34)
-
-章节来源
-- [backend/app/api/parse.py](file://backend/app/api/parse.py#L1-L77)
-- [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L1-L163)
-- [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L1-L123)
-- [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py#L1-L114)
-- [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
 - [backend/app/models/models.py](file://backend/app/models/models.py#L171-L223)
 - [backend/app/core/config.py](file://backend/app/core/config.py#L1-L34)
 
@@ -91,7 +86,9 @@ KS --> CFG
 - 数据模型：定义解析任务、知识点、最佳实践等实体及枚举。
 - 请求/响应模式：定义输入输出结构，确保前后端契约一致。
 
-章节来源
+**更新** 新增任务管理功能，包括任务列表查询、详情获取和删除操作。
+
+**章节来源**
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L17-L77)
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L15-L163)
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L20-L123)
@@ -126,7 +123,7 @@ S-->>R : 返回ParseTaskResponse
 R-->>C : 200 OK
 ```
 
-图表来源
+**图表来源**
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L17-L46)
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L57-L132)
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L30-L118)
@@ -142,7 +139,9 @@ R-->>C : 200 OK
 - 任务详情：GET /parse/tasks/{task_id}，返回任务及关联的知识点与最佳实践。
 - 任务删除：DELETE /parse/tasks/{task_id}。
 
-章节来源
+**更新** 新增完整的任务管理接口，包括列表查询、详情获取和删除操作。
+
+**章节来源**
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L17-L77)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L194-L265)
 
@@ -174,12 +173,12 @@ ParseService --> KnowledgeService : "调用"
 ParseService --> ExtractorService : "调用"
 ```
 
-图表来源
+**图表来源**
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L15-L163)
 - [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py#L11-L114)
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L20-L123)
 
-章节来源
+**章节来源**
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L15-L163)
 
 ### 文本抽取服务（ExtractorService）
@@ -188,7 +187,7 @@ ParseService --> ExtractorService : "调用"
 - URL抓取：使用BeautifulSoup解析HTML，移除脚本、样式等无关标签，提取正文。
 - 异常处理：空内容、不支持格式、超限等均抛出明确错误。
 
-章节来源
+**章节来源**
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L20-L123)
 - [backend/app/core/config.py](file://backend/app/core/config.py#L21-L24)
 
@@ -197,7 +196,7 @@ ParseService --> ExtractorService : "调用"
 - 温度参数：推理稳定性控制；JSON解析失败时返回默认结构。
 - 容错处理：去除代码块标记后尝试解析，失败记录日志并降级。
 
-章节来源
+**章节来源**
 - [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py#L11-L114)
 
 ### 数据模型与响应结构
@@ -243,10 +242,10 @@ PARSE_TASK ||--o{ KNOWLEDGE_POINT : "包含"
 PARSE_TASK ||--o{ BEST_PRACTICE : "包含"
 ```
 
-图表来源
+**图表来源**
 - [backend/app/models/models.py](file://backend/app/models/models.py#L171-L223)
 
-章节来源
+**章节来源**
 - [backend/app/models/models.py](file://backend/app/models/models.py#L171-L223)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L234-L265)
 
@@ -255,10 +254,8 @@ PARSE_TASK ||--o{ BEST_PRACTICE : "包含"
 - Prompt设计：明确三段式输出（摘要、知识点、最佳实践），约束字段与格式。
 - 与资料处理的差异：资料API使用QwenService进行流式进度上报，解析API直接返回最终结果。
 
-章节来源
-- [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L10-L156)
+**章节来源**
 - [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py#L51-L109)
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L27-L79)
 
 ### 输入格式与输出结构
 - 支持的输入格式
@@ -269,7 +266,9 @@ PARSE_TASK ||--o{ BEST_PRACTICE : "包含"
   - 任务详情包含：任务ID、标题、来源类型、摘要、状态、错误信息、知识点列表、最佳实践列表等。
   - 知识点与最佳实践包含：名称/标题、描述/内容、重要度/分类/适用场景/注意事项等。
 
-章节来源
+**更新** 新增任务管理功能，支持对解析任务的完整生命周期管理。
+
+**章节来源**
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L16-L17)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L194-L265)
 
@@ -277,8 +276,7 @@ PARSE_TASK ||--o{ BEST_PRACTICE : "包含"
 - 解析API当前实现：一次性返回最终结果，不提供SSE流式进度。
 - 参考实现：资料API提供SSE流式进度（知识点提取、题目生成、保存等阶段），可作为解析API进度上报的参考模板。
 
-章节来源
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L27-L79)
+**章节来源**
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L17-L77)
 
 ### 请求示例与流程
@@ -299,8 +297,11 @@ PARSE_TASK ||--o{ BEST_PRACTICE : "包含"
   - 详情：GET /parse/tasks/{task_id}
   - 删除：DELETE /parse/tasks/{task_id}
 
-章节来源
+**更新** 新增任务管理接口的完整请求示例。
+
+**章节来源**
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L17-L77)
+- [frontend/src/api/index.js](file://frontend/src/api/index.js#L51-L67)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L194-L265)
 
 ### 解析质量评估与结果验证
@@ -308,7 +309,7 @@ PARSE_TASK ||--o{ BEST_PRACTICE : "包含"
 - 容错策略：去除代码块标记后解析，失败返回默认结构并记录日志。
 - 建议：前端可对摘要长度、知识点数量范围、最佳实践条数进行二次校验；后端可增加字段完整性检查。
 
-章节来源
+**章节来源**
 - [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py#L38-L109)
 
 ## 依赖关系分析
@@ -320,27 +321,24 @@ graph LR
 API["parse.py"] --> PS["parse_service.py"]
 PS --> ES["extractor_service.py"]
 PS --> KS["knowledge_service.py"]
-KS --> QW["qwen_service.py"]
 PS --> DB["models.py"]
 ES --> CFG["config.py"]
 KS --> CFG
 ```
 
-图表来源
+**图表来源**
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L1-L14)
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L1-L12)
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L1-L14)
 - [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py#L1-L8)
-- [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L7)
 - [backend/app/models/models.py](file://backend/app/models/models.py#L1-L6)
 - [backend/app/core/config.py](file://backend/app/core/config.py#L1-L34)
 
-章节来源
+**章节来源**
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L1-L14)
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L1-L12)
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L1-L14)
 - [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py#L1-L8)
-- [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L7)
 - [backend/app/models/models.py](file://backend/app/models/models.py#L1-L6)
 - [backend/app/core/config.py](file://backend/app/core/config.py#L1-L34)
 
@@ -351,7 +349,7 @@ KS --> CFG
 - Prompt优化：控制输入长度与JSON约束，减少模型输出冗余。
 - 建议：对长文档可分段处理并聚合结果；对高并发场景引入队列与异步任务。
 
-章节来源
+**章节来源**
 - [backend/app/core/config.py](file://backend/app/core/config.py#L21-L24)
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L35-L55)
 - [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py#L19-L36)
@@ -367,13 +365,15 @@ KS --> CFG
 - 重试机制
   - 建议：对网络异常与AI超时进行指数退避重试；对格式错误不建议自动重试，需人工修正。
 
-章节来源
+**章节来源**
 - [backend/app/services/extractor_service.py](file://backend/app/services/extractor_service.py#L23-L28)
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L72-L78)
 - [backend/app/services/knowledge_service.py](file://backend/app/services/knowledge_service.py#L48-L49)
 
 ## 结论
 内容解析API提供了从文本、文件与URL中抽取知识与最佳实践的能力，具备清晰的输入输出契约与完善的错误处理。结合AI服务的Prompt设计与容错策略，能够稳定产出结构化结果。未来可在解析API中引入SSE进度上报与异步队列，进一步提升用户体验与系统吞吐量。
+
+**更新** 新增的任务管理功能使API具备了完整的任务生命周期管理能力，为后续的功能扩展奠定了坚实基础。
 
 ## 附录
 
@@ -389,10 +389,15 @@ KS --> CFG
 - 任务管理：GET/DELETE /parse/tasks/*
   - 列表与详情：[backend/app/api/parse.py](file://backend/app/api/parse.py#L49-L76)
 
+**更新** 新增任务管理接口的完整清单。
+
 ### 前端调用参考
 - 基础URL与超时：[frontend/src/api/index.js](file://frontend/src/api/index.js#L3-L9)
-- 资料API（SSE进度参考）：[backend/app/api/materials.py](file://backend/app/api/materials.py#L164-L185)
+- 知识解析API调用：[frontend/src/api/index.js](file://frontend/src/api/index.js#L51-L67)
+
+**更新** 新增任务管理接口的前端调用示例。
 
 ### 测试与验证
-- 知识点与题目生成测试：[test_api.py](file://test_api.py#L1-L30)
 - 完整流程测试：[backend/test_full_flow.py](file://backend/test_full_flow.py#L1-L56)
+
+**更新** 新增任务管理功能的测试参考。

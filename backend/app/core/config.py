@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     
     # 知识解析配置
     upload_dir: str = "./uploads"
-    max_file_size: int = 10 * 1024 * 1024  # 10MB
+    max_file_size: int = 30 * 1024 * 1024  # 30MB
     
     class Config:
         env_file = ".env"
