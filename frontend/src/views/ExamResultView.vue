@@ -11,6 +11,27 @@
           <div class="score-label">分</div>
         </div>
         <div v-if="result.grade" class="grade">等级: {{ result.grade }}</div>
+        
+        <!-- 游戏化奖励 -->
+        <div v-if="gamification" class="gamification-rewards">
+          <div class="exp-gain">
+            <span class="exp-icon">&#x2B50;</span>
+            <span class="exp-amount">+{{ gamification.exp_gained }} EXP</span>
+          </div>
+          <div v-if="gamification.level_up" class="level-up-notice">
+            <div class="level-change">Level {{ gamification.old_level }} &#x2192; Level {{ gamification.new_level }}</div>
+            <div class="title-change">{{ gamification.new_title }}</div>
+          </div>
+          <div v-if="gamification.achievements_unlocked && gamification.achievements_unlocked.length" class="achievements-notice">
+            <div v-for="ach in gamification.achievements_unlocked" :key="ach.id" class="ach-badge">
+              <span class="ach-name">{{ ach.name }}</span>
+            </div>
+          </div>
+          <div v-if="gamification.tasks_completed && gamification.tasks_completed.length" class="tasks-notice">
+            <span v-for="t in gamification.tasks_completed" :key="t" class="task-done-tag">{{ t }}</span>
+          </div>
+        </div>
+        
         <div class="stats">
           <div class="stat-item">
             <span class="stat-value">{{ result.total_questions }}</span>
@@ -85,12 +106,20 @@ const route = useRoute()
 const result = ref(null)
 const questions = ref({})
 const loading = ref(true)
+const gamification = ref(null)
 
 const loadResult = async () => {
   loading.value = true
   try {
     const res = await examsApi.getResult(route.params.id)
     result.value = res.data
+    
+    // 检查是否有游戏化数据（从 sessionStorage 获取，由提交时存储）
+    const gData = sessionStorage.getItem(`exam_gamification_${route.params.id}`)
+    if (gData) {
+      gamification.value = JSON.parse(gData)
+      sessionStorage.removeItem(`exam_gamification_${route.params.id}`)
+    }
     
     // 加载题目详情
     const questionIds = res.data.answers.map(a => a.question_id)
@@ -377,6 +406,97 @@ onMounted(loadResult)
 
 .explanation {
   border-left: 4px solid var(--color-success);
+}
+
+/* Gamification Rewards */
+.gamification-rewards {
+  position: relative;
+  z-index: 1;
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: rgba(99, 102, 241, 0.08);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.exp-gain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.exp-icon {
+  font-size: 1.5rem;
+}
+
+.exp-amount {
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.level-up-notice {
+  text-align: center;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 237, 78, 0.1));
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: var(--radius-md);
+}
+
+.level-change {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffd700;
+  margin-bottom: 0.25rem;
+}
+
+.title-change {
+  font-size: 0.9rem;
+  color: #ffed4e;
+  font-weight: 600;
+}
+
+.achievements-notice {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.ach-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.85rem;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #a855f7;
+}
+
+.tasks-notice {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.task-done-tag {
+  padding: 0.25rem 0.65rem;
+  background: rgba(16, 185, 129, 0.15);
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-success);
 }
 
 .actions {

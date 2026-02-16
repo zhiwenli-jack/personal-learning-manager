@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.models import Mistake, Question, Material
 from app.schemas import MistakeResponse, MistakeUpdate
+from app.services import gamification_service as gs
 
 router = APIRouter(prefix="/mistakes", tags=["错题管理"])
 
@@ -55,7 +56,10 @@ def update_mistake(
     if not mistake:
         raise HTTPException(status_code=404, detail="错题不存在")
     
+    was_mastered = mistake.mastered
+    
     if data.mastered is not None:
+        was_mastered = mistake.mastered
         mistake.mastered = data.mastered
     
     if data.review_count is not None:
@@ -66,6 +70,22 @@ def update_mistake(
     
     db.commit()
     db.refresh(mistake)
+    
+    # 游戏化：标记为掌握时触发
+    if data.mastered and not was_mastered:
+        try:
+            # 重新加载关联以确保 question.material 可用
+            mistake_with_rel = (
+                db.query(Mistake)
+                .options(
+                    joinedload(Mistake.question).joinedload(Question.material)
+                )
+                .filter(Mistake.id == mistake_id)
+                .first()
+            )
+            gs.on_mistake_mastered(db, mistake_with_rel)
+        except Exception:
+            pass
     
     # 重新加载关联
     mistake = (

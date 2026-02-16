@@ -1,7 +1,7 @@
 """数据库模型定义"""
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum as PyEnum
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Enum, JSON, Numeric
+from sqlalchemy import Column, Integer, String, Text, DateTime, Date, ForeignKey, Boolean, Enum, JSON, Numeric, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -220,3 +220,101 @@ class BestPractice(Base):
     
     # 关联
     task = relationship("ParseTask", back_populates="best_practices")
+
+
+# ============ 游戏化系统模型 ============
+
+class ExpSourceType(str, PyEnum):
+    """经验值来源类型"""
+    EXAM_COMPLETE = "exam_complete"
+    MISTAKE_MASTER = "mistake_master"
+    MATERIAL_UPLOAD = "material_upload"
+    PARSE_COMPLETE = "parse_complete"
+    DAILY_TASK = "daily_task"
+    ACHIEVEMENT = "achievement"
+    STREAK_BONUS = "streak_bonus"
+
+
+class UserProfile(Base):
+    """用户档案表"""
+    __tablename__ = "user_profiles"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, unique=True, default=1, comment="用户ID(单用户固定为1)")
+    username = Column(String(50), nullable=False, default="探险家", comment="用户名")
+    level = Column(Integer, nullable=False, default=1, comment="当前等级")
+    exp = Column(Integer, nullable=False, default=0, comment="当前经验值")
+    total_exp = Column(Integer, nullable=False, default=0, comment="累计经验值")
+    title = Column(String(50), nullable=False, default="见习探险家", comment="当前称号")
+    streak_days = Column(Integer, nullable=False, default=0, comment="连续学习天数")
+    last_login_date = Column(Date, nullable=True, comment="最后登录日期")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
+
+
+class UserAchievement(Base):
+    """用户成就解锁记录表"""
+    __tablename__ = "user_achievements"
+    __table_args__ = (
+        UniqueConstraint("user_id", "achievement_id", name="uq_user_achievement"),
+    )
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, default=1, comment="用户ID")
+    achievement_id = Column(String(50), nullable=False, comment="成就ID")
+    unlocked_at = Column(DateTime, default=datetime.now, comment="解锁时间")
+
+
+class UserDailyTask(Base):
+    """用户每日任务进度表"""
+    __tablename__ = "user_daily_tasks"
+    __table_args__ = (
+        UniqueConstraint("user_id", "task_id", "date", name="uq_user_daily_task"),
+    )
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, default=1, comment="用户ID")
+    task_id = Column(String(50), nullable=False, comment="任务ID")
+    date = Column(Date, nullable=False, comment="任务日期")
+    target = Column(Integer, nullable=False, comment="目标值")
+    current = Column(Integer, nullable=False, default=0, comment="当前进度")
+    completed = Column(Boolean, nullable=False, default=False, comment="是否完成")
+    exp_reward = Column(Integer, nullable=False, comment="经验奖励")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    completed_at = Column(DateTime, nullable=True, comment="完成时间")
+
+
+class ExpLog(Base):
+    """经验获取日志表"""
+    __tablename__ = "exp_logs"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, default=1, comment="用户ID")
+    exp_amount = Column(Integer, nullable=False, comment="经验值")
+    source_type = Column(Enum(ExpSourceType), nullable=False, comment="来源类型")
+    source_id = Column(Integer, nullable=True, comment="来源ID")
+    description = Column(String(200), nullable=True, comment="描述")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+
+
+class DirectionProgress(Base):
+    """方向探索进度表"""
+    __tablename__ = "direction_progress"
+    __table_args__ = (
+        UniqueConstraint("user_id", "direction_id", name="uq_user_direction_progress"),
+    )
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, default=1, comment="用户ID")
+    direction_id = Column(Integer, ForeignKey("directions.id"), nullable=False, comment="学习方向ID")
+    total_questions = Column(Integer, nullable=False, default=0, comment="该方向题目总数")
+    answered_questions = Column(Integer, nullable=False, default=0, comment="已答题目数")
+    correct_questions = Column(Integer, nullable=False, default=0, comment="答对题目数")
+    mastered_count = Column(Integer, nullable=False, default=0, comment="已掌握知识点数")
+    exploration_rate = Column(Numeric(5, 2), nullable=False, default=0, comment="探索率(0-100)")
+    last_studied_at = Column(DateTime, nullable=True, comment="最后学习时间")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
+    
+    # 关联
+    direction = relationship("Direction")

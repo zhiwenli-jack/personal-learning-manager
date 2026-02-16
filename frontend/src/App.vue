@@ -10,6 +10,8 @@
         <router-link to="/questions"><span>题目管理</span></router-link>
         <router-link to="/exam"><span>开始测验</span></router-link>
         <router-link to="/mistakes"><span>错题本</span></router-link>
+        <router-link to="/map"><span>探险地图</span></router-link>
+        <router-link to="/achievements"><span>成就</span></router-link>
       </div>
     </nav>
     <main class="main-content">

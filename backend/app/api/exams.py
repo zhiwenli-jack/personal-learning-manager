@@ -10,6 +10,7 @@ from app.models import (
 )
 from app.schemas import ExamCreate, ExamResponse, ExamWithQuestions, ExamResult, ExamSubmit
 from app.services import qwen_service
+from app.services import gamification_service as gs
 
 router = APIRouter(prefix="/exams", tags=["测验"])
 
@@ -250,7 +251,14 @@ async def submit_exam(
     
     db.commit()
     
-    return ExamResult(
+    # 游戏化处理
+    gamification = None
+    try:
+        gamification = gs.on_exam_complete(db, exam, correct_count, question_count)
+    except Exception:
+        pass  # 游戏化失败不影响测验结果
+    
+    result = ExamResult(
         exam_id=exam_id,
         total_questions=question_count,
         correct_count=correct_count,
@@ -258,6 +266,11 @@ async def submit_exam(
         grade=exam.grade,
         answers=answer_responses
     )
+    # 附加游戏化数据到响应
+    result_dict = result.model_dump()
+    if gamification:
+        result_dict["gamification"] = gamification
+    return result_dict
 
 
 @router.get("/{exam_id}/result", response_model=ExamResult)

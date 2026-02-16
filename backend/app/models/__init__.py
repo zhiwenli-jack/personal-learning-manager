@@ -17,6 +17,12 @@ from app.models.models import (
     ParseTask,
     KnowledgePoint,
     BestPractice,
+    ExpSourceType,
+    UserProfile,
+    UserAchievement,
+    UserDailyTask,
+    ExpLog,
+    DirectionProgress,
 )
 
 __all__ = [
@@ -37,4 +43,10 @@ __all__ = [
     "ParseTask",
     "KnowledgePoint",
     "BestPractice",
+    "ExpSourceType",
+    "UserProfile",
+    "UserAchievement",
+    "UserDailyTask",
+    "ExpLog",
+    "DirectionProgress",
 ]

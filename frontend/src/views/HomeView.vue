@@ -38,6 +38,83 @@
       </div>
     </div>
 
+    <!-- 探险家档案 + 每日任务 -->
+    <div v-if="profile" class="explorer-section">
+      <div class="explorer-profile card">
+        <div class="profile-header">
+          <div class="level-badge">Lv.{{ profile.level }}</div>
+          <div class="profile-info">
+            <h3 class="profile-name">{{ profile.username }}</h3>
+            <span class="profile-title">{{ profile.title }}</span>
+          </div>
+          <div class="streak-info" v-if="profile.streak_days > 0">
+            <span class="streak-icon">&#x1f525;</span>
+            <span class="streak-count">{{ profile.streak_days }}天</span>
+          </div>
+        </div>
+        <div class="exp-bar-container">
+          <div class="exp-bar">
+            <div class="exp-fill" :style="{ width: expPercentCalc + '%' }"></div>
+          </div>
+          <div class="exp-text">
+            {{ profile.total_exp }} / {{ profile.next_level_exp }} EXP
+          </div>
+        </div>
+        <div class="profile-stats">
+          <div class="p-stat">
+            <div class="p-stat-value">{{ profile.total_exp }}</div>
+            <div class="p-stat-label">总经验</div>
+          </div>
+          <div class="p-stat">
+            <div class="p-stat-value">{{ profile.level }}</div>
+            <div class="p-stat-label">等级</div>
+          </div>
+          <div class="p-stat">
+            <div class="p-stat-value">{{ profile.streak_days }}</div>
+            <div class="p-stat-label">连续天数</div>
+          </div>
+        </div>
+        <router-link to="/map" class="btn btn-primary btn-block">
+          &#x1f5fa;&#xfe0f; 查看探险地图
+        </router-link>
+      </div>
+
+      <div class="daily-tasks card">
+        <div class="tasks-header">
+          <h3>
+            <span class="title-icon">&#x1f4cb;</span>
+            每日任务
+          </h3>
+          <span class="tasks-progress">{{ completedTaskCount }}/{{ dailyTasks.length }}</span>
+        </div>
+        <div v-if="dailyTasks.length === 0" class="empty-tasks">今日任务加载中...</div>
+        <div v-else class="tasks-list">
+          <div
+            v-for="task in dailyTasks"
+            :key="task.task_id"
+            class="task-item"
+            :class="{ completed: task.completed }"
+          >
+            <div class="task-left">
+              <span class="task-check" :class="{ done: task.completed }">
+                {{ task.completed ? '&#x2714;' : '' }}
+              </span>
+              <div class="task-info">
+                <span class="task-name">{{ task.name }}</span>
+                <span class="task-desc">{{ task.description }}</span>
+              </div>
+            </div>
+            <div class="task-right">
+              <div class="task-progress-bar">
+                <div class="task-progress-fill" :style="{ width: (task.current / task.target * 100) + '%' }"></div>
+              </div>
+              <span class="task-reward">+{{ task.exp_reward }} EXP</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="quick-actions">
       <h2 class="section-title">
         <span class="title-icon">🚀</span>
@@ -141,8 +218,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { directionsApi, materialsApi, questionsApi } from '@/api'
+import { ref, onMounted, computed } from 'vue'
+import { directionsApi, materialsApi, questionsApi, gamificationApi } from '@/api'
 
 const directions = ref([])
 const materialsCount = ref(0)
@@ -150,6 +227,35 @@ const questionsCount = ref(0)
 const loading = ref(true)
 const showAddDirection = ref(false)
 const newDirection = ref({ name: '', description: '' })
+
+// 游戏化数据
+const profile = ref(null)
+const dailyTasks = ref([])
+
+const expPercent = computed(() => {
+  if (!profile.value || !profile.value.next_level_exp) return 0
+  const current = profile.value.total_exp
+  // 当前等级的起始经验
+  const nextExp = profile.value.next_level_exp
+  const toNext = profile.value.exp_to_next
+  const currentLevelStart = nextExp - (nextExp - current + toNext) + toNext
+  if (nextExp <= currentLevelStart) return 100
+  return Math.min(100, Math.round(((current - (nextExp - toNext - (toNext > 0 ? 0 : 0))) / (toNext + (current - (nextExp - toNext)))) * 100)) || Math.round((1 - profile.value.exp_to_next / Math.max(1, profile.value.next_level_exp - (profile.value.next_level_exp - profile.value.exp_to_next - profile.value.total_exp + profile.value.total_exp))) * 100) || 0
+})
+
+const expPercentCalc = computed(() => {
+  if (!profile.value) return 0
+  const totalExp = profile.value.total_exp
+  const nextExp = profile.value.next_level_exp
+  const toNext = profile.value.exp_to_next
+  const currentLevelBase = nextExp - toNext
+  if (currentLevelBase >= nextExp) return 100
+  const range = nextExp - currentLevelBase
+  const progress = totalExp - currentLevelBase
+  return range > 0 ? Math.min(100, Math.round((progress / range) * 100)) : 0
+})
+
+const completedTaskCount = computed(() => dailyTasks.value.filter(t => t.completed).length)
 
 const loadDirections = async () => {
   loading.value = true
@@ -202,12 +308,29 @@ const deleteDirection = async (id) => {
 
 const getMaterialsCount = (directionId) => {
   if (!materialsCount.value) return '0'
-  // 简单返回固定值，实际可根据数据计算
   return '多个'
 }
 
+const loadProfile = async () => {
+  try {
+    const res = await gamificationApi.getProfile()
+    profile.value = res.data
+  } catch (e) {
+    console.error('加载档案失败:', e)
+  }
+}
+
+const loadDailyTasks = async () => {
+  try {
+    const res = await gamificationApi.getDailyTasks()
+    dailyTasks.value = res.data
+  } catch (e) {
+    console.error('加载任务失败:', e)
+  }
+}
+
 onMounted(async () => {
-  await Promise.all([loadDirections(), loadStats()])
+  await Promise.all([loadDirections(), loadStats(), loadProfile(), loadDailyTasks()])
 })
 </script>
 
@@ -715,5 +838,273 @@ onMounted(async () => {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .explorer-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Explorer Section */
+.explorer-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.explorer-profile {
+  padding: 1.5rem;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  height: 56px;
+  padding: 0 0.75rem;
+  background: var(--gradient-primary);
+  border-radius: 16px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.profile-info {
+  flex: 1;
+}
+
+.profile-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 0.25rem;
+}
+
+.profile-title {
+  font-size: 0.85rem;
+  color: var(--color-accent-primary);
+  font-weight: 500;
+}
+
+.streak-info {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.75rem;
+  background: rgba(245, 158, 11, 0.15);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+.streak-icon {
+  font-size: 1.1rem;
+}
+
+.exp-bar-container {
+  margin-bottom: 1.25rem;
+}
+
+.exp-bar {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  background: var(--color-bg-tertiary);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.exp-fill {
+  height: 100%;
+  background: var(--gradient-primary);
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+  border-radius: 10px;
+}
+
+.exp-text {
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.35rem;
+}
+
+.profile-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.p-stat {
+  text-align: center;
+}
+
+.p-stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.p-stat-label {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.15rem;
+}
+
+.btn-block {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+/* Daily Tasks */
+.daily-tasks {
+  padding: 1.5rem;
+}
+
+.tasks-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.tasks-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.tasks-progress {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent-primary);
+  padding: 0.25rem 0.65rem;
+  background: var(--color-accent-glow);
+  border-radius: 10px;
+}
+
+.empty-tasks {
+  text-align: center;
+  color: var(--color-text-secondary);
+  padding: 2rem 0;
+}
+
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-base);
+}
+
+.task-item.completed {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.task-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.task-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.task-check.done {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: white;
+}
+
+.task-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.task-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.task-desc {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.task-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  min-width: 100px;
+}
+
+.task-progress-bar {
+  width: 80px;
+  height: 6px;
+  background: var(--color-bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.task-progress-fill {
+  height: 100%;
+  background: var(--gradient-primary);
+  transition: width 0.5s ease-out;
+  border-radius: 3px;
+}
+
+.task-item.completed .task-progress-fill {
+  background: var(--color-success);
+}
+
+.task-reward {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-accent-primary);
 }
 </style>

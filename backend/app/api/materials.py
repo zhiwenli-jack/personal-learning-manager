@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.models import Material, MaterialStatus, Direction, Question, QuestionType
 from app.schemas import MaterialCreate, MaterialResponse
 from app.services import qwen_service
+from app.services import gamification_service as gs
 import json
 import logging
 
@@ -144,6 +145,12 @@ async def create_material(
         material.status = MaterialStatus.PROCESSED
         db.commit()
         db.refresh(material)
+        
+        # 游戏化：资料上传成功
+        try:
+            gs.on_material_uploaded(db, material)
+        except Exception:
+            pass
         
     except HTTPException:
         # 重新抛出HTTP异常，不需要额外处理

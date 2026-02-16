@@ -69,4 +69,15 @@ export const parseApi = {
   generateQuestions: (taskId) => api.post(`/parse/tasks/${taskId}/generate-questions`)
 }
 
+// 游戏化 API
+export const gamificationApi = {
+  getProfile: () => api.get('/gamification/profile'),
+  getAchievements: () => api.get('/gamification/achievements'),
+  getDailyTasks: () => api.get('/gamification/daily-tasks'),
+  getDirectionProgress: (directionId) => api.get('/gamification/direction-progress', {
+    params: directionId ? { direction_id: directionId } : {}
+  }),
+  getExpLogs: (params) => api.get('/gamification/exp-logs', { params })
+}
+
 export default api

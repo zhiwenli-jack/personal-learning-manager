@@ -43,6 +43,7 @@ env/
 *.sqlite
 *.sqlite3
 study_manager.db
+*.xlsx
 
 # Logs
 *.log
@@ -78,3 +79,6 @@ coverage/
 *.tmp
 *.temp
 .temp/
+
+# Extra
+.pdf

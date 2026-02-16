@@ -35,6 +35,16 @@ const routes = [
     path: '/mistakes',
     name: 'Mistakes',
     component: () => import('@/views/MistakesView.vue')
+  },
+  {
+    path: '/map',
+    name: 'ExplorerMap',
+    component: () => import('@/views/ExplorerMapView.vue')
+  },
+  {
+    path: '/achievements',
+    name: 'Achievements',
+    component: () => import('@/views/AchievementsView.vue')
   }
 ]
 

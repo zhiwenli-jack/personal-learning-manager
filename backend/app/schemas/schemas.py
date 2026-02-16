@@ -1,5 +1,5 @@
 """Pydantic 数据模式定义"""
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
 from app.models import (
@@ -9,6 +9,7 @@ from app.models import (
     ExamMode,
     ExamStatus,
     ScoreType,
+    ExpSourceType,
 )
 
 
@@ -262,3 +263,108 @@ class ParseTaskResponse(BaseModel):
     updated_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
+
+
+# ============ 游戏化系统 Schemas ============
+
+class UserProfileResponse(BaseModel):
+    """用户档案响应"""
+    user_id: int
+    username: str
+    level: int
+    exp: int
+    total_exp: int
+    next_level_exp: int
+    exp_to_next: int
+    title: str
+    streak_days: int
+    last_login_date: Optional[date] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AchievementInfo(BaseModel):
+    """成就信息"""
+    achievement_id: str
+    name: str
+    description: str
+    icon: str
+    rarity: str
+    exp_reward: int
+    category: str
+
+
+class UserAchievementResponse(BaseModel):
+    """已解锁成就响应"""
+    achievement_id: str
+    name: str
+    description: str
+    icon: str
+    rarity: str
+    unlocked_at: datetime
+
+
+class LockedAchievementResponse(BaseModel):
+    """未解锁成就响应"""
+    achievement_id: str
+    name: str
+    description: str
+    icon: str
+    rarity: str
+    category: str
+
+
+class AchievementsListResponse(BaseModel):
+    """成就列表响应"""
+    unlocked: list[UserAchievementResponse] = []
+    locked: list[LockedAchievementResponse] = []
+
+
+class DailyTaskResponse(BaseModel):
+    """每日任务响应"""
+    task_id: str
+    name: str
+    description: str
+    icon: str
+    target: int
+    current: int
+    completed: bool
+    exp_reward: int
+    date: date
+
+
+class DirectionProgressResponse(BaseModel):
+    """方向探索进度响应"""
+    direction_id: int
+    direction_name: str
+    direction_description: Optional[str] = None
+    total_questions: int
+    answered_questions: int
+    correct_questions: int
+    mastered_count: int
+    exploration_rate: float
+    last_studied_at: Optional[datetime] = None
+
+
+class ExpLogResponse(BaseModel):
+    """经验日志响应"""
+    id: int
+    exp_amount: int
+    source_type: ExpSourceType
+    description: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GamificationReward(BaseModel):
+    """游戏化奖励（嵌入到测验结果等响应中）"""
+    exp_gained: int = 0
+    level_up: bool = False
+    old_level: Optional[int] = None
+    new_level: Optional[int] = None
+    new_title: Optional[str] = None
+    achievements_unlocked: list[AchievementInfo] = []
+    tasks_completed: list[str] = []
