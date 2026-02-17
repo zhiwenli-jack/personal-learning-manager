@@ -12,6 +12,10 @@
           <option :value="false">未掌握</option>
           <option :value="true">已掌握</option>
         </select>
+        <select v-model="filters.error_prone" class="form-control" @change="loadMistakes">
+          <option :value="null">全部题目</option>
+          <option :value="true">易错题</option>
+        </select>
       </div>
     </div>
 
@@ -21,9 +25,13 @@
       <p class="hint">完成测验后，错误的题目会自动收录到这里</p>
     </div>
     <div v-else class="mistakes-list">
-      <div v-for="m in mistakes" :key="m.id" class="card mistake-card">
+      <div v-for="m in filteredMistakes" :key="m.id" class="card mistake-card">
         <div class="mistake-header">
-          <span class="review-count">已复习 {{ m.review_count }} 次</span>
+          <div class="header-left">
+            <span v-if="m.error_prone" class="tag tag-red">易错题</span>
+            <span class="error-count">出错 {{ m.error_count || 1 }} 次</span>
+            <span class="review-count">已复习 {{ m.review_count }} 次</span>
+          </div>
           <span :class="['tag', m.mastered ? 'tag-green' : 'tag-yellow']">
             {{ m.mastered ? '已掌握' : '未掌握' }}
           </span>
@@ -73,7 +81,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { directionsApi, mistakesApi } from '@/api'
 
 const directions = ref([])
@@ -83,7 +91,14 @@ const showAnswers = reactive({})
 
 const filters = reactive({
   direction_id: null,
-  mastered: null
+  mastered: null,
+  error_prone: null
+})
+
+// 前端过滤易错题
+const filteredMistakes = computed(() => {
+  if (filters.error_prone === null) return mistakes.value
+  return mistakes.value.filter(m => m.error_prone === filters.error_prone)
 })
 
 const questionTypeText = (type) => {
@@ -240,6 +255,29 @@ onMounted(async () => {
   border-bottom: 1px solid var(--color-border);
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.error-count {
+  color: var(--color-error);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.error-count::before {
+  content: '';
+}
+
+.tag-red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .review-count {

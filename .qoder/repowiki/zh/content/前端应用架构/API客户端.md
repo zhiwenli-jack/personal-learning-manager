@@ -11,11 +11,25 @@
 - [backend/app/api/materials.py](file://backend/app/api/materials.py)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py)
 - [backend/app/api/exams.py](file://backend/app/api/exams.py)
+- [backend/app/api/gamification.py](file://backend/app/api/gamification.py)
+- [backend/app/services/gamification_service.py](file://backend/app/services/gamification_service.py)
+- [backend/app/core/achievements.py](file://backend/app/core/achievements.py)
+- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py)
 - [frontend/src/views/MaterialsView.vue](file://frontend/src/views/MaterialsView.vue)
 - [frontend/src/views/QuestionsView.vue](file://frontend/src/views/QuestionsView.vue)
 - [frontend/src/views/ExamStartView.vue](file://frontend/src/views/ExamStartView.vue)
 - [frontend/src/views/ExamTakingView.vue](file://frontend/src/views/ExamTakingView.vue)
+- [frontend/src/views/AchievementsView.vue](file://frontend/src/views/AchievementsView.vue)
+- [frontend/src/views/HomeView.vue](file://frontend/src/views/HomeView.vue)
+- [frontend/src/views/ExamResultView.vue](file://frontend/src/views/ExamResultView.vue)
 </cite>
+
+## 更新摘要
+**变更内容**
+- 新增gamification相关的API端点集成，包括档案管理、成就跟踪和进度可视化接口
+- 扩展前端API封装，新增游戏化系统相关的方法
+- 更新后端路由注册，集成游戏化功能模块
+- 增强前端视图组件，支持游戏化功能展示
 
 ## 目录
 1. [简介](#简介)
@@ -30,13 +44,14 @@
 10. [附录](#附录)
 
 ## 简介
-本文件面向“API客户端”的设计与实现，系统性阐述前后端数据交互方案，覆盖以下主题：
+本文件面向"API客户端"的设计与实现，系统性阐述前后端数据交互方案，覆盖以下主题：
 - Axios配置与拦截器（请求拦截、响应处理、错误统一处理）
 - API端点定义与封装（HTTP方法、URL模式、参数传递）
 - 异步数据获取策略（loading状态、错误处理、重试机制）
 - 文件上传实现（进度监控、SSE流式处理）
 - 数据缓存、请求去重与性能优化
 - 认证令牌管理、CORS处理与安全考虑
+- **新增** 游戏化系统集成（档案管理、成就跟踪、进度可视化）
 - 实际代码示例路径与最佳实践
 
 ## 项目结构
@@ -48,12 +63,12 @@ subgraph "前端"
 Vite["Vite 开发服务器<br/>代理 /api → http://localhost:8000"]
 Router["Vue Router<br/>路由定义"]
 API["API 封装<br/>axios.create + 模块化端点"]
-Views["视图组件<br/>Materials/Questions/Exam*"]
+Views["视图组件<br/>Materials/Questions/Exam*/Achievements/Home"]
 end
 subgraph "后端"
 FastAPI["FastAPI 应用"]
 CORS["CORS 中间件"]
-Routers["各模块路由<br/>/api/materials /api/questions /api/exams"]
+Routers["各模块路由<br/>/api/materials /api/questions /api/exams /api/gamification"]
 end
 Vite --> API
 Router --> Views
@@ -79,9 +94,10 @@ FastAPI --> Routers
 - Axios实例与端点封装：在前端集中创建Axios实例，并按业务模块导出API对象，统一处理基础URL、超时与头部。
 - 视图组件：通过调用API封装函数发起请求，管理loading、错误提示与SSE进度流。
 - 后端路由：FastAPI注册各模块路由，提供REST接口与SSE流，启用CORS中间件。
+- **新增** 游戏化系统：提供用户档案、成就系统、每日任务和进度跟踪功能。
 
 章节来源
-- [frontend/src/api/index.js](file://frontend/src/api/index.js#L1-L52)
+- [frontend/src/api/index.js](file://frontend/src/api/index.js#L1-L84)
 - [frontend/src/views/MaterialsView.vue](file://frontend/src/views/MaterialsView.vue#L160-L401)
 - [backend/app/main.py](file://backend/app/main.py#L27-L42)
 
@@ -95,7 +111,7 @@ participant API as "API封装"
 participant Axios as "Axios实例"
 participant Proxy as "Vite代理"
 participant Backend as "FastAPI服务"
-View->>API : 调用封装好的方法(如 materialsApi.getAll)
+View->>API : 调用封装好的方法(如 materialsApi.getAll 或 gamificationApi.getProfile)
 API->>Axios : 发起HTTP请求(含baseURL/timeout/headers)
 Axios->>Proxy : 请求 /api/* (开发环境)
 Proxy->>Backend : 转发到 http : //localhost : 8000
@@ -114,7 +130,7 @@ API-->>View : 返回数据并更新UI
 
 ### Axios配置与拦截器
 - 基础配置
-  - baseURL: 使用相对路径“/api”，由Vite代理转发至后端
+  - baseURL: 使用相对路径"/api"，由Vite代理转发至后端
   - timeout: 3分钟，适配AI处理较长耗时
   - Content-Type: application/json
 - 拦截器
@@ -147,12 +163,19 @@ API-->>View : 返回数据并更新UI
   - GET /api/exams/{id}
   - POST /api/exams/{id}/submit
   - GET /api/exams/{id}/result
+- **新增** 游戏化系统
+  - GET /api/gamification/profile - 获取用户游戏化档案
+  - GET /api/gamification/achievements - 获取成就列表（已解锁 + 未解锁）
+  - GET /api/gamification/daily-tasks - 获取今日任务列表
+  - GET /api/gamification/direction-progress - 获取方向探索进度
+  - GET /api/gamification/exp-logs - 获取经验获取日志
 
 章节来源
-- [frontend/src/api/index.js](file://frontend/src/api/index.js#L11-L49)
+- [frontend/src/api/index.js](file://frontend/src/api/index.js#L11-L81)
 - [backend/app/api/materials.py](file://backend/app/api/materials.py#L15-L161)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L11-L89)
 - [backend/app/api/exams.py](file://backend/app/api/exams.py#L29-L239)
+- [backend/app/api/gamification.py](file://backend/app/api/gamification.py#L21-L129)
 
 ### 异步数据获取策略
 - 加载状态
@@ -170,7 +193,7 @@ API-->>View : 返回数据并更新UI
 ### 文件上传与SSE进度监控
 - 文件上传
   - 支持文本输入与Markdown文件上传两种方式
-  - 上传后立即触发后端处理流程（同步执行），并在状态为“pending”时建立SSE连接
+  - 上传后立即触发后端处理流程（同步执行），并在状态为"pending"时建立SSE连接
 - SSE流式处理
   - 后端通过StreamingResponse返回SSE事件流，包含步骤、进度与消息
   - 前端使用EventSource接收消息，更新进度条与状态，完成后关闭连接并刷新列表
@@ -210,6 +233,79 @@ end
 - [backend/app/api/materials.py](file://backend/app/api/materials.py#L27-L80)
 - [backend/app/api/materials.py](file://backend/app/api/materials.py#L164-L185)
 
+### 游戏化系统集成
+**新增** 游戏化系统提供了完整的用户激励机制，包括经验值、等级、成就和每日任务等功能。
+
+#### 用户档案管理
+- 获取用户档案：`GET /api/gamification/profile`
+- 功能特性：
+  - 显示用户等级、经验值、称号
+  - 连续登录天数统计
+  - 下一级所需经验值计算
+  - 用户基本信息展示
+
+#### 成就系统
+- 获取成就列表：`GET /api/gamification/achievements`
+- 功能特性：
+  - 区分已解锁和未解锁成就
+  - 支持多种稀有度（普通、稀有、史诗、传说）
+  - 成就图标和描述展示
+  - 解锁时间记录
+
+#### 每日任务系统
+- 获取今日任务：`GET /api/gamification/daily-tasks`
+- 功能特性：
+  - 自动生成每日任务
+  - 任务进度跟踪
+  - 经验值奖励机制
+  - 任务类型分类（测验、错题、资料等）
+
+#### 学习进度可视化
+- 获取方向进度：`GET /api/gamification/direction-progress`
+- 功能特性：
+  - 各学习方向的探索进度
+  - 答题正确率统计
+  - 掌握错题数量
+  - 最近学习时间
+
+#### 经验日志追踪
+- 获取经验日志：`GET /api/gamification/exp-logs`
+- 功能特性：
+  - 分页查询经验获取记录
+  - 详细的经验来源说明
+  - 时间排序展示
+
+章节来源
+- [frontend/src/api/index.js](file://frontend/src/api/index.js#L72-L81)
+- [backend/app/api/gamification.py](file://backend/app/api/gamification.py#L24-L129)
+- [backend/app/services/gamification_service.py](file://backend/app/services/gamification_service.py#L21-L482)
+- [backend/app/core/achievements.py](file://backend/app/core/achievements.py#L3-L121)
+- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L268-L371)
+
+### 前端游戏化功能实现
+**新增** 前端组件集成了游戏化系统的各个功能：
+
+#### 首页集成
+- 探险家档案展示：显示用户等级、经验值、称号和连续登录天数
+- 每日任务面板：展示今日任务进度和奖励
+- 经验值进度条：直观显示升级进度
+
+#### 成就殿堂
+- 已解锁成就卡片：展示成就图标、稀有度和解锁时间
+- 未解锁成就预览：显示成就描述和解锁条件
+- 成就统计：显示已解锁数量和总数
+
+#### 测验结果增强
+- 游戏化奖励展示：在测验结果页面显示获得的经验值
+- 升级通知：显示等级提升和新称号
+- 成就解锁提醒：展示新解锁的成就
+- 任务完成提示：显示完成的每日任务
+
+章节来源
+- [frontend/src/views/HomeView.vue](file://frontend/src/views/HomeView.vue#L41-L116)
+- [frontend/src/views/AchievementsView.vue](file://frontend/src/views/AchievementsView.vue#L1-L130)
+- [frontend/src/views/ExamResultView.vue](file://frontend/src/views/ExamResultView.vue#L15-L33)
+
 ### 认证令牌管理、CORS处理与安全
 - 认证令牌
   - 当前未实现令牌注入与刷新；建议在请求拦截器中从存储读取并附加到Authorization头
@@ -225,10 +321,12 @@ end
 ### 数据缓存、请求去重与性能优化
 - 缓存
   - 可在Pinia中为常用列表维护本地缓存，减少重复请求
+  - 游戏化数据可以适当缓存，但需要考虑实时性要求
 - 去重
   - 对相同请求参数的并发请求进行去重，避免重复发送
 - 性能
   - 合理设置超时与分页；对长列表使用虚拟滚动；对SSE连接做生命周期管理
+  - 游戏化API可以考虑缓存策略，特别是成就列表和用户档案
 
 章节来源
 - [frontend/src/views/QuestionsView.vue](file://frontend/src/views/QuestionsView.vue#L222-L237)
@@ -273,6 +371,10 @@ FastAPI --> Qwen["通义千问服务"]
   - 组件卸载时关闭EventSource，避免内存泄漏
 - 分页与懒加载
   - 列表数据分页或虚拟滚动，减少首屏渲染压力
+- **新增** 游戏化系统性能优化
+  - 用户档案和成就列表可以适当缓存
+  - 每日任务数据实时性要求较高，需要及时刷新
+  - 经验日志支持分页查询，避免一次性加载大量数据
 
 章节来源
 - [frontend/src/api/index.js](file://frontend/src/api/index.js#L5-L5)
@@ -286,20 +388,29 @@ FastAPI --> Qwen["通义千问服务"]
 - 建议
   - 在请求拦截器中统一记录请求日志与错误
   - 对SSE连接增加重连与错误恢复逻辑
+- **新增** 游戏化系统故障排查
+  - 用户档案为空：检查数据库连接和用户记录初始化
+  - 成就未解锁：验证成就条件检查逻辑和统计数据
+  - 每日任务异常：确认任务生成逻辑和日期判断
+  - 进度数据不准确：检查方向进度计算和统计查询
 
 章节来源
 - [frontend/src/views/MaterialsView.vue](file://frontend/src/views/MaterialsView.vue#L287-L296)
 - [backend/app/api/materials.py](file://backend/app/api/materials.py#L94-L96)
 
 ## 结论
-本项目在前后端分离架构下，通过Axios封装与FastAPI路由实现了清晰的数据交互层。当前实现具备SSE进度流与基础错误提示，建议进一步完善拦截器、认证令牌、CORS安全策略与性能优化措施，以提升稳定性与用户体验。
+本项目在前后端分离架构下，通过Axios封装与FastAPI路由实现了清晰的数据交互层。当前实现具备SSE进度流与基础错误提示，**新增的游戏化系统**进一步增强了用户体验，包括用户档案、成就系统、每日任务和进度可视化等功能。建议进一步完善拦截器、认证令牌、CORS安全策略与性能优化措施，以提升稳定性与用户体验。
 
 ## 附录
 - 代码示例路径
-  - Axios实例与端点封装：[frontend/src/api/index.js](file://frontend/src/api/index.js#L1-L52)
+  - Axios实例与端点封装：[frontend/src/api/index.js](file://frontend/src/api/index.js#L1-L84)
   - 资料上传与SSE：[frontend/src/views/MaterialsView.vue](file://frontend/src/views/MaterialsView.vue#L301-L376), [backend/app/api/materials.py](file://backend/app/api/materials.py#L164-L185)
   - 题目列表与筛选：[frontend/src/views/QuestionsView.vue](file://frontend/src/views/QuestionsView.vue#L222-L237)
   - 测验创建与提交：[frontend/src/views/ExamStartView.vue](file://frontend/src/views/ExamStartView.vue#L140-L151), [frontend/src/views/ExamTakingView.vue](file://frontend/src/views/ExamTakingView.vue#L208-L235)
+  - **新增** 游戏化系统API：[frontend/src/api/index.js](file://frontend/src/api/index.js#L72-L81), [backend/app/api/gamification.py](file://backend/app/api/gamification.py#L24-L129)
+  - **新增** 成就系统实现：[frontend/src/views/AchievementsView.vue](file://frontend/src/views/AchievementsView.vue#L1-L130), [backend/app/services/gamification_service.py](file://backend/app/services/gamification_service.py#L182-L206)
+  - **新增** 首页游戏化集成：[frontend/src/views/HomeView.vue](file://frontend/src/views/HomeView.vue#L314-L334)
+  - **新增** 测验结果游戏化：[frontend/src/views/ExamResultView.vue](file://frontend/src/views/ExamResultView.vue#L15-L33)
   - 代理与路由：[frontend/vite.config.js](file://frontend/vite.config.js#L12-L20), [frontend/src/router/index.js](file://frontend/src/router/index.js#L1-L47)
-  - CORS与路由注册：[backend/app/main.py](file://backend/app/main.py#L27-L42)
+  - CORS与路由注册：[backend/app/main.py](file://backend/app/main.py#L27-L44)
   - 配置项（含API密钥）：[backend/app/core/config.py](file://backend/app/core/config.py#L6-L24)

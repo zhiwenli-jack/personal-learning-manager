@@ -21,7 +21,19 @@ export const materialsApi = {
   create: (data) => api.post('/materials', data),
   get: (id) => api.get(`/materials/${id}`),
   delete: (id) => api.delete(`/materials/${id}`),
-  updateDirection: (id, directionId) => api.patch(`/materials/${id}`, { direction_id: directionId })
+  updateDirection: (id, directionId) => api.patch(`/materials/${id}`, { direction_id: directionId }),
+  // 新增：文件上传（PDF/DOCX/MD/TXT）
+  uploadFile: (title, file, directionId) => {
+    const formData = new FormData()
+    formData.append('title', title)
+    formData.append('direction_id', directionId)
+    formData.append('file', file)
+    return api.post('/materials/upload-file', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  // 新增：从URL创建资料
+  fromUrl: (data) => api.post('/materials/from-url', data)
 }
 
 // 题目 API

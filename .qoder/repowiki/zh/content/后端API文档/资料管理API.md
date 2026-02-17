@@ -15,6 +15,13 @@
 - [test_full_flow.py](file://backend/test_full_flow.py)
 </cite>
 
+## 更新摘要
+**变更内容**
+- 新增PATCH端点用于动态更新学习材料的方向分配
+- 增强API的灵活性，支持运行时调整资料方向
+- 添加方向验证和错误处理机制
+- 更新前端API集成和测试用例
+
 ## 目录
 1. [简介](#简介)
 2. [项目结构](#项目结构)
@@ -31,7 +38,7 @@
 资料管理API是个人学习管理软件的核心功能模块，提供完整的学习资料生命周期管理能力。该系统集成了AI驱动的知识点提炼、智能题目生成和实时进度监控功能，为学习者提供智能化的学习体验。
 
 系统主要包含两大核心功能模块：
-- **学习资料管理**：支持资料上传、解析、题目生成和删除
+- **学习资料管理**：支持资料上传、解析、题目生成、删除和方向动态更新
 - **知识解析服务**：支持文本、文件和URL三种来源的知识解析
 
 所有操作均采用异步处理机制，配合SSE（Server-Sent Events）实现实时进度监控，确保用户体验的流畅性和响应性。
@@ -67,12 +74,12 @@ Config --> Services
 ```
 
 **图表来源**
-- [materials.py](file://backend/app/api/materials.py#L1-L203)
+- [materials.py](file://backend/app/api/materials.py#L1-L232)
 - [parse.py](file://backend/app/api/parse.py#L1-L77)
 - [config.py](file://backend/app/core/config.py#L1-L34)
 
 **章节来源**
-- [materials.py](file://backend/app/api/materials.py#L1-L203)
+- [materials.py](file://backend/app/api/materials.py#L1-L232)
 - [parse.py](file://backend/app/api/parse.py#L1-L77)
 - [config.py](file://backend/app/core/config.py#L1-L34)
 
@@ -80,13 +87,14 @@ Config --> Services
 
 ### 学习资料管理模块
 
-学习资料管理模块提供完整的资料生命周期管理，包括上传、解析、进度监控和删除功能。
+学习资料管理模块提供完整的资料生命周期管理，包括上传、解析、进度监控、删除和方向动态更新功能。
 
 #### 主要特性
 - **多格式支持**：PDF、DOCX、MD、TXT文件解析
 - **实时进度监控**：SSE流式传输处理进度
 - **AI智能处理**：知识点提炼和题目生成
 - **状态管理**：完整的处理状态跟踪
+- **动态方向管理**：支持运行时更新学习方向
 
 #### 关键数据模型
 
@@ -200,7 +208,7 @@ MaterialsAPI --> Uploads
 ```
 
 **图表来源**
-- [materials.py](file://backend/app/api/materials.py#L1-L203)
+- [materials.py](file://backend/app/api/materials.py#L1-L232)
 - [parse.py](file://backend/app/api/parse.py#L1-L77)
 - [qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
 
@@ -214,8 +222,34 @@ MaterialsAPI --> Uploads
 |------|------|------|--------|
 | GET | `/materials` | 获取资料列表 | `List[MaterialResponse]` |
 | POST | `/materials` | 上传并处理资料 | `MaterialResponse` |
+| PATCH | `/materials/{material_id}` | 更新资料方向 | `MaterialResponse` |
 | GET | `/materials/{material_id}/progress` | 获取处理进度 | `StreamingResponse` |
 | DELETE | `/materials/{material_id}` | 删除资料 | `dict` |
+
+#### 新增：PATCH端点 - 动态更新学习方向
+
+**更新** 新增PATCH端点用于动态更新学习材料的方向分配，增强API的灵活性
+
+系统支持运行时动态调整资料的学习方向，无需重新上传或重新处理：
+
+```mermaid
+sequenceDiagram
+participant Client as 客户端
+participant API as 资料API
+participant DB as 数据库
+Client->>API : PATCH /materials/{material_id}
+Client->>API : { "direction_id" : 2 }
+API->>DB : 查询资料是否存在
+DB-->>API : 返回资料信息
+API->>DB : 验证目标方向存在性
+DB-->>API : 返回方向信息
+API->>DB : 更新资料direction_id
+DB-->>API : 确认更新
+API->>Client : 返回更新后的资料
+```
+
+**图表来源**
+- [materials.py](file://backend/app/api/materials.py#L213-L232)
 
 #### SSE进度流实现
 
@@ -251,7 +285,7 @@ end
 ```
 
 **图表来源**
-- [materials.py](file://backend/app/api/materials.py#L27-L85)
+- [materials.py](file://backend/app/api/materials.py#L34-L87)
 
 #### 错误处理机制
 
@@ -269,10 +303,10 @@ UpdateFailed --> ReturnError
 ```
 
 **图表来源**
-- [materials.py](file://backend/app/api/materials.py#L82-L161)
+- [materials.py](file://backend/app/api/materials.py#L82-L167)
 
 **章节来源**
-- [materials.py](file://backend/app/api/materials.py#L1-L203)
+- [materials.py](file://backend/app/api/materials.py#L1-L232)
 
 ### 知识解析API组件
 
@@ -468,6 +502,15 @@ ParseService --> Config
 - 确认数据库连接字符串正确
 - 验证数据库文件完整性
 
+#### 5. 方向更新失败
+
+**症状**：PATCH请求返回"学习方向不存在"错误
+
+**解决方案**：
+- 检查目标方向ID是否存在于数据库
+- 确认方向ID的有效性
+- 验证数据库连接和权限
+
 **章节来源**
 - [materials.py](file://backend/app/api/materials.py#L94-L96)
 - [extractor_service.py](file://backend/app/services/extractor_service.py#L35-L36)
@@ -481,6 +524,9 @@ ParseService --> Config
 2. **实时用户体验**：SSE流式进度监控确保用户获得及时反馈
 3. **强大的AI集成**：深度整合通义千问API实现智能化处理
 4. **灵活的扩展性**：模块化设计便于功能扩展和维护
-5. **完善的错误处理**：健壮的异常处理机制确保系统稳定性
+5. **动态方向管理**：新增的PATCH端点支持运行时调整学习方向
+6. **完善的错误处理**：健壮的异常处理机制确保系统稳定性
 
 系统通过合理的架构设计和性能优化，在保证功能完整性的同时，也为未来的功能扩展和技术升级奠定了坚实基础。
+
+**更新** 最新的PATCH端点增强了API的灵活性，允许用户在不重新处理内容的情况下动态调整学习材料的方向分配，提高了系统的可用性和用户体验。

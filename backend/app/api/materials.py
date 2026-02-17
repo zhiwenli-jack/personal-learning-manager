@@ -1,5 +1,5 @@
 """学习资料 API"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -9,15 +9,96 @@ from app.models import Material, MaterialStatus, Direction, Question, QuestionTy
 from app.schemas import MaterialCreate, MaterialResponse
 from app.services import qwen_service
 from app.services import gamification_service as gs
+from app.services.extractor_service import extractor_service
 import json
 import logging
 
 router = APIRouter(prefix="/materials", tags=["学习资料"])
+logger = logging.getLogger(__name__)
 
 
 class UpdateMaterialDirectionRequest(BaseModel):
     """更新资料方向请求"""
     direction_id: int
+
+
+class MaterialFromUrlRequest(BaseModel):
+    """从URL创建资料请求"""
+    title: str
+    url: str
+    direction_id: int
+
+
+async def _process_material_content(
+    title: str,
+    content: str,
+    direction_id: int,
+    db: Session
+) -> Material:
+    """处理资料内容：提炼知识点并生成题目（复用逻辑）"""
+    direction = db.query(Direction).filter(Direction.id == direction_id).first()
+    if not direction:
+        raise HTTPException(status_code=404, detail="学习方向不存在")
+    
+    if not qwen_service.api_key:
+        raise HTTPException(status_code=500, detail="API密钥未配置，请联系管理员设置QWEN_API_KEY")
+    
+    # 创建资料记录
+    material = Material(
+        direction_id=direction_id,
+        title=title,
+        content=content,
+        status=MaterialStatus.PENDING
+    )
+    db.add(material)
+    db.commit()
+    db.refresh(material)
+    
+    direction_name = direction.name
+    
+    try:
+        # 1. 提炼知识点
+        key_points = await qwen_service.extract_key_points(content, direction_name)
+        material.key_points = key_points
+        
+        # 2. 生成题目
+        questions_data = await qwen_service.generate_questions(key_points, direction_name)
+        
+        # 3. 保存题目
+        for q_data in questions_data:
+            answer = q_data.get("answer", "")
+            if isinstance(answer, list):
+                answer = ",".join(answer)
+            
+            question = Question(
+                material_id=material.id,
+                type=QuestionType(q_data.get("type", "single_choice")),
+                difficulty=q_data.get("difficulty", 3),
+                content=q_data.get("content", ""),
+                options=q_data.get("options"),
+                answer=str(answer),
+                explanation=q_data.get("explanation", ""),
+            )
+            db.add(question)
+        
+        material.status = MaterialStatus.PROCESSED
+        db.commit()
+        db.refresh(material)
+        
+        # 游戏化：资料上传成功
+        try:
+            gs.on_material_uploaded(db, material)
+        except Exception:
+            pass
+            
+    except Exception as e:
+        logger.error(f"处理资料失败 [ID:{material.id}]: {str(e)}", exc_info=True)
+        material.status = MaterialStatus.FAILED
+        db.commit()
+        db.refresh(material)
+        raise HTTPException(status_code=500, detail=f"处理资料失败: {str(e)}")
+    
+    return material
 
 
 @router.get("", response_model=list[MaterialResponse])
@@ -30,6 +111,66 @@ def get_materials(
     if direction_id:
         query = query.filter(Material.direction_id == direction_id)
     return query.order_by(Material.created_at.desc()).all()
+
+
+@router.post("/upload-file", response_model=MaterialResponse)
+async def upload_file_material(
+    title: str = Form(...),
+    direction_id: int = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """上传文件创建资料（支持 PDF, DOCX, MD, TXT）
+    
+    直接复用 extractor_service 提取文本，然后处理生成题目
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="未上传文件")
+    
+    try:
+        # 使用 extractor_service 提取文件内容
+        content = await extractor_service.extract_from_file(file)
+        
+        # 复用处理逻辑
+        material = await _process_material_content(title, content, direction_id, db)
+        return material
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"文件上传处理失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"文件处理失败: {str(e)}")
+
+
+@router.post("/from-url", response_model=MaterialResponse)
+async def create_material_from_url(
+    data: MaterialFromUrlRequest,
+    db: Session = Depends(get_db)
+):
+    """从URL创建资料
+    
+    直接复用 extractor_service 抓取网页内容，然后处理生成题目
+    """
+    if not data.url.strip():
+        raise HTTPException(status_code=400, detail="URL不能为空")
+    
+    try:
+        # 使用 extractor_service 提取URL内容
+        content = await extractor_service.extract_from_url(data.url)
+        
+        # 复用处理逻辑
+        material = await _process_material_content(data.title, content, data.direction_id, db)
+        return material
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"URL解析处理失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"URL处理失败: {str(e)}")
 
 
 async def generate_material_stream(material_id: int, direction_name: str, content: str, db: Session):

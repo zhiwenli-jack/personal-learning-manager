@@ -176,9 +176,12 @@ class MistakeResponse(BaseModel):
     id: int
     question_id: int
     answer_id: int
+    error_count: int = 1
+    error_prone: bool = False
     review_count: int
     mastered: bool
     created_at: datetime
+    last_error_at: Optional[datetime] = None
     question: Optional[QuestionResponse] = None
     
     model_config = ConfigDict(from_attributes=True)
@@ -188,6 +191,7 @@ class MistakeUpdate(BaseModel):
     """更新错题"""
     mastered: Optional[bool] = None
     review_count: Optional[int] = None
+    error_prone: Optional[bool] = None
 
 
 # ============ 知识解析 Schemas ============

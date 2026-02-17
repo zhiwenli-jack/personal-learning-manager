@@ -15,6 +15,31 @@ from app.services import gamification_service as gs
 router = APIRouter(prefix="/exams", tags=["测验"])
 
 
+def _add_or_update_mistake(db: Session, question_id: int, answer_id: int):
+    """添加或更新错题记录（同一题目不重复，多次出错标记为易错题）"""
+    existing = db.query(Mistake).filter(Mistake.question_id == question_id).first()
+    
+    if existing:
+        # 已存在：更新错误次数和时间，标记为易错题
+        existing.error_count += 1
+        existing.last_error_at = datetime.now()
+        existing.answer_id = answer_id
+        if existing.error_count >= 2:
+            existing.error_prone = True
+        # 如果之前标记为已掌握但又答错了，取消掌握状态
+        if existing.mastered:
+            existing.mastered = False
+    else:
+        # 不存在：创建新错题记录
+        mistake = Mistake(
+            question_id=question_id,
+            answer_id=answer_id,
+            error_count=1,
+            error_prone=False,
+        )
+        db.add(mistake)
+
+
 def _resolve_option_text(answer: str, options: list) -> str:
     """将选项字母(A/B/C/D)或带前缀的答案解析为实际选项文本"""
     answer = answer.strip()
@@ -225,13 +250,9 @@ async def submit_exam(
         db.add(answer)
         db.flush()
         
-        # 如果答错，添加到错题本
+        # 如果答错，添加或更新错题本
         if not is_correct:
-            mistake = Mistake(
-                question_id=question.id,
-                answer_id=answer.id,
-            )
-            db.add(mistake)
+            _add_or_update_mistake(db, question.id, answer.id)
         
         total_score += score
         if is_correct:

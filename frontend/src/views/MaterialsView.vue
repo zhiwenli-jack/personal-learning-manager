@@ -121,7 +121,11 @@
             <button 
               :class="['tab-btn', { active: inputMode === 'file' }]" 
               @click="inputMode = 'file'"
-            >上传MD文件</button>
+            >上传文件</button>
+            <button 
+              :class="['tab-btn', { active: inputMode === 'url' }]" 
+              @click="inputMode = 'url'"
+            >网页链接</button>
           </div>
           <!-- 文本输入模式 -->
           <textarea 
@@ -131,8 +135,8 @@
             rows="10"
             placeholder="粘贴或输入学习资料内容，系统将自动提炼知识点并生成题目..."
           ></textarea>
-          <!-- MD文件上传模式 -->
-          <div v-else class="file-upload-area">
+          <!-- 文件上传模式 -->
+          <div v-else-if="inputMode === 'file'" class="file-upload-area">
             <div 
               class="drop-zone"
               :class="{ 'drag-over': isDragOver }"
@@ -144,14 +148,14 @@
               <input 
                 ref="fileInput"
                 type="file" 
-                accept=".md" 
+                accept=".pdf,.docx,.md,.txt" 
                 style="display: none"
                 @change="handleFileSelect"
               >
               <div v-if="!selectedFile" class="drop-hint">
                 <span class="drop-icon">&#128196;</span>
-                <p>点击选择或拖拽 .md 文件到此处</p>
-                <p class="drop-sub">仅支持 Markdown (.md) 文件</p>
+                <p>点击选择或拖拽文件到此处</p>
+                <p class="drop-sub">支持 .pdf, .docx, .md, .txt 格式</p>
               </div>
               <div v-else class="file-info">
                 <span class="file-name">{{ selectedFile.name }}</span>
@@ -159,13 +163,15 @@
                 <button class="btn-remove" @click.stop="clearFile">&times;</button>
               </div>
             </div>
-            <!-- Markdown 预览 -->
-            <div v-if="newMaterial.content && inputMode === 'file'" class="md-preview">
-              <div class="md-preview-header">
-                <span>内容预览</span>
-              </div>
-              <div class="md-preview-body markdown-body" v-html="previewHtml"></div>
-            </div>
+          </div>
+          <!-- URL输入模式 -->
+          <div v-else-if="inputMode === 'url'" class="form-group url-input-group">
+            <input 
+              v-model="newMaterial.url" 
+              class="form-control" 
+              placeholder="https://example.com/article"
+            >
+            <p class="input-hint">输入网页链接，系统将自动抓取内容并生成题目</p>
           </div>
         </div>
         <div class="modal-actions">
@@ -446,7 +452,8 @@ const showApiKeyWarning = ref(false) // 显示API密钥警告
 const newMaterial = ref({
   direction_id: null,
   title: '',
-  content: ''
+  content: '',
+  url: ''
 })
 
 const inputMode = ref('text')
@@ -484,9 +491,13 @@ const previewHtml = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  return newMaterial.value.direction_id && 
-         newMaterial.value.title && 
-         newMaterial.value.content
+  if (!newMaterial.value.direction_id || !newMaterial.value.title) return false
+  switch (inputMode.value) {
+    case 'text': return newMaterial.value.content.trim().length > 0
+    case 'file': return selectedFile.value !== null
+    case 'url': return newMaterial.value.url.trim().length > 0
+    default: return false
+  }
 })
 
 const statusClass = (status) => {
@@ -524,40 +535,33 @@ const formatFileSize = (bytes) => {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
-const readMdFile = (file) => {
-  if (!file || !file.name.endsWith('.md')) {
-    alert('请选择 .md 格式的文件')
+const validateAndSetFile = (file) => {
+  const allowedExtensions = ['.pdf', '.docx', '.md', '.txt']
+  const fileExt = '.' + file.name.split('.').pop().toLowerCase()
+  if (!allowedExtensions.includes(fileExt)) {
+    alert('不支持的文件格式，请上传 .pdf, .docx, .md 或 .txt 文件')
     return
   }
   selectedFile.value = file
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    newMaterial.value.content = e.target.result
-    // 自动填充标题（去掉 .md 后缀）
-    if (!newMaterial.value.title) {
-      newMaterial.value.title = file.name.replace(/\.md$/, '')
-    }
+  // 自动填充标题（去掉扩展名）
+  if (!newMaterial.value.title) {
+    newMaterial.value.title = file.name.replace(/\.[^/.]+$/, '')
   }
-  reader.onerror = () => {
-    alert('文件读取失败，请重试')
-  }
-  reader.readAsText(file, 'UTF-8')
 }
 
 const handleFileSelect = (event) => {
   const file = event.target.files[0]
-  if (file) readMdFile(file)
+  if (file) validateAndSetFile(file)
 }
 
 const handleFileDrop = (event) => {
   isDragOver.value = false
   const file = event.dataTransfer.files[0]
-  if (file) readMdFile(file)
+  if (file) validateAndSetFile(file)
 }
 
 const clearFile = () => {
   selectedFile.value = null
-  newMaterial.value.content = ''
   if (fileInput.value) fileInput.value.value = ''
 }
 
@@ -594,11 +598,34 @@ const addMaterial = async () => {
   if (!canSubmit.value) return
   submitting.value = true
   try {
-    const res = await materialsApi.create(newMaterial.value)
+    let res
+    switch (inputMode.value) {
+      case 'text':
+        res = await materialsApi.create({
+          title: newMaterial.value.title,
+          content: newMaterial.value.content,
+          direction_id: newMaterial.value.direction_id
+        })
+        break
+      case 'file':
+        res = await materialsApi.uploadFile(
+          newMaterial.value.title,
+          selectedFile.value,
+          newMaterial.value.direction_id
+        )
+        break
+      case 'url':
+        res = await materialsApi.fromUrl({
+          title: newMaterial.value.title,
+          url: newMaterial.value.url,
+          direction_id: newMaterial.value.direction_id
+        })
+        break
+    }
     const materialId = res.data.id
     
     showAddMaterial.value = false
-    newMaterial.value = { direction_id: null, title: '', content: '' }
+    newMaterial.value = { direction_id: null, title: '', content: '', url: '' }
     selectedFile.value = null
     inputMode.value = 'text'
     await loadMaterials()
@@ -622,6 +649,8 @@ const addMaterial = async () => {
       alert('上传失败: ' + (e.response?.data?.detail || '服务器内部错误'))
     } else if (e.response?.status === 404) {
       alert('上传失败: ' + (e.response?.data?.detail || '找不到指定资源'))
+    } else if (e.response?.status === 400) {
+      alert('上传失败: ' + (e.response?.data?.detail || '请求参数错误'))
     } else {
       alert('上传失败: ' + (e.response?.data?.detail || e.message))
     }
@@ -1236,6 +1265,17 @@ onUnmounted(() => {
 .btn-remove:hover {
   background: #dc2626;
   transform: scale(1.1);
+}
+
+/* URL Input */
+.url-input-group {
+  margin-top: 0;
+}
+
+.input-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-tertiary);
 }
 
 /* Markdown Preview */

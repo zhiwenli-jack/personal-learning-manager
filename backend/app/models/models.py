@@ -157,11 +157,14 @@ class Mistake(Base):
     __tablename__ = "mistakes"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False, comment="题目ID")
-    answer_id = Column(Integer, ForeignKey("answers.id"), nullable=False, comment="答题记录ID")
+    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False, unique=True, comment="题目ID(唯一，同题不重复记录)")
+    answer_id = Column(Integer, ForeignKey("answers.id"), nullable=False, comment="最近一次答题记录ID")
+    error_count = Column(Integer, default=1, comment="错误次数")
+    error_prone = Column(Boolean, default=False, comment="是否为易错题(错误>=2次)")
     review_count = Column(Integer, default=0, comment="复习次数")
     mastered = Column(Boolean, default=False, comment="是否已掌握")
-    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    created_at = Column(DateTime, default=datetime.now, comment="首次出错时间")
+    last_error_at = Column(DateTime, default=datetime.now, comment="最近出错时间")
     
     # 关联
     question = relationship("Question", back_populates="mistakes")
