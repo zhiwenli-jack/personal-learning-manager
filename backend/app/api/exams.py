@@ -1,8 +1,9 @@
 """测验 API"""
+import random
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, case, literal
 from app.core.database import get_db
 from app.models import (
     Exam, ExamStatus, ExamMode, ScoreType,
@@ -80,6 +81,76 @@ def calculate_grade(score: float) -> str:
         return "D"
 
 
+def _select_questions_by_priority(db: Session, direction_id: int, count: int) -> list[Question]:
+    """按优先级选题：新题 > 易错题 > 错题 > 其他
+    
+    优先级说明：
+    - 新题：从未在任何测验答题记录中出现过的题目
+    - 易错题：在错题本中标记为 error_prone=True 且未掌握的题目
+    - 错题：在错题本中但未标记为易错、未掌握的题目
+    - 其他：已答过但不在错题本中，或已掌握的题目
+    """
+    # 该方向下的所有题目ID
+    all_q_ids = (
+        db.query(Question.id)
+        .join(Material)
+        .filter(Material.direction_id == direction_id)
+        .all()
+    )
+    all_q_ids = {row[0] for row in all_q_ids}
+    
+    if not all_q_ids:
+        return []
+    
+    # 已答过的题目ID（出现在 answers 表中的）
+    answered_q_ids = (
+        db.query(Answer.question_id)
+        .distinct()
+        .filter(Answer.question_id.in_(all_q_ids))
+        .all()
+    )
+    answered_q_ids = {row[0] for row in answered_q_ids}
+    
+    # 新题：从未答过
+    new_q_ids = all_q_ids - answered_q_ids
+    
+    # 错题本中未掌握的题目
+    mistake_rows = (
+        db.query(Mistake.question_id, Mistake.error_prone)
+        .filter(
+            Mistake.question_id.in_(all_q_ids),
+            Mistake.mastered == False
+        )
+        .all()
+    )
+    error_prone_ids = {row[0] for row in mistake_rows if row[1]}  # 易错题
+    mistake_ids = {row[0] for row in mistake_rows if not row[1]}  # 普通错题
+    
+    # 其他：已答过但不在未掌握的错题中
+    other_ids = answered_q_ids - error_prone_ids - mistake_ids
+    
+    # 按优先级依次填充
+    selected = []
+    remaining = count
+    
+    for pool in [new_q_ids, error_prone_ids, mistake_ids, other_ids]:
+        if remaining <= 0:
+            break
+        pool_list = list(pool)
+        random.shuffle(pool_list)
+        take = pool_list[:remaining]
+        selected.extend(take)
+        remaining -= len(take)
+    
+    if not selected:
+        return []
+    
+    # 查询完整的 Question 对象，保持选中顺序随机化
+    questions = db.query(Question).filter(Question.id.in_(selected)).all()
+    random.shuffle(questions)
+    return questions
+
+
 @router.get("", response_model=list[ExamResponse])
 def get_exams(
     direction_id: int = None,
@@ -100,16 +171,8 @@ def get_exams(
 
 @router.post("", response_model=ExamWithQuestions)
 def create_exam(data: ExamCreate, db: Session = Depends(get_db)):
-    """创建测验"""
-    # 获取该方向下的题目
-    questions = (
-        db.query(Question)
-        .join(Material)
-        .filter(Material.direction_id == data.direction_id)
-        .order_by(func.random())
-        .limit(data.question_count)
-        .all()
-    )
+    """创建测验（按优先级选题：新题 > 易错题 > 错题 > 其他）"""
+    questions = _select_questions_by_priority(db, data.direction_id, data.question_count)
     
     if not questions:
         raise HTTPException(status_code=400, detail="该方向下没有可用题目，请先上传资料")
