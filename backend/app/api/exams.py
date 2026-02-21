@@ -86,10 +86,13 @@ def _select_questions_by_priority(db: Session, direction_id: int, count: int) ->
     
     优先级说明：
     - 新题：从未在任何测验答题记录中出现过的题目
-    - 易错题：在错题本中标记为 error_prone=True 且未掌握的题目
-    - 错题：在错题本中但未标记为易错、未掌握的题目
-    - 其他：已答过但不在错题本中，或已掌握的题目
+    - 易错题：在错题本中标记为 error_prone=True 的题目（无论是否已掌握）
+    - 错题：在错题本中但非易错的题目（无论是否已掌握）
+    - 其他：已答过但不在错题本中的题目
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # 该方向下的所有题目ID
     all_q_ids = (
         db.query(Question.id)
@@ -114,38 +117,44 @@ def _select_questions_by_priority(db: Session, direction_id: int, count: int) ->
     # 新题：从未答过
     new_q_ids = all_q_ids - answered_q_ids
     
-    # 错题本中未掌握的题目
+    # 错题本中的题目（不限制 mastered 状态）
     mistake_rows = (
         db.query(Mistake.question_id, Mistake.error_prone)
-        .filter(
-            Mistake.question_id.in_(all_q_ids),
-            Mistake.mastered == False
-        )
+        .filter(Mistake.question_id.in_(all_q_ids))
         .all()
     )
     error_prone_ids = {row[0] for row in mistake_rows if row[1]}  # 易错题
     mistake_ids = {row[0] for row in mistake_rows if not row[1]}  # 普通错题
     
-    # 其他：已答过但不在未掌握的错题中
-    other_ids = answered_q_ids - error_prone_ids - mistake_ids
+    # 其他：已答过但不在错题本中的题目
+    all_mistake_ids = error_prone_ids | mistake_ids
+    other_ids = answered_q_ids - all_mistake_ids
+    
+    logger.info(
+        f"[选题] 方向{direction_id}: 总题{len(all_q_ids)} | "
+        f"新题{len(new_q_ids)} | 易错题{len(error_prone_ids)} | "
+        f"错题{len(mistake_ids)} | 其他{len(other_ids)} | 需要{count}题"
+    )
     
     # 按优先级依次填充
     selected = []
     remaining = count
     
-    for pool in [new_q_ids, error_prone_ids, mistake_ids, other_ids]:
+    for label, pool in [("新题", new_q_ids), ("易错题", error_prone_ids), ("错题", mistake_ids), ("其他", other_ids)]:
         if remaining <= 0:
             break
         pool_list = list(pool)
         random.shuffle(pool_list)
         take = pool_list[:remaining]
+        if take:
+            logger.info(f"[选题] 从[{label}]池选取{len(take)}题: {take}")
         selected.extend(take)
         remaining -= len(take)
     
     if not selected:
         return []
     
-    # 查询完整的 Question 对象，保持选中顺序随机化
+    # 查询完整的 Question 对象，打乱顺序
     questions = db.query(Question).filter(Question.id.in_(selected)).all()
     random.shuffle(questions)
     return questions
@@ -378,3 +387,17 @@ def get_exam_result(exam_id: int, db: Session = Depends(get_db)):
         grade=exam.grade,
         answers=answers
     )
+
+
+@router.delete("/{exam_id}")
+def delete_exam(exam_id: int, db: Session = Depends(get_db)):
+    """删除测验及其关联的答题记录"""
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="测验不存在")
+    
+    # 先删除关联的答题记录
+    db.query(Answer).filter(Answer.exam_id == exam_id).delete()
+    db.delete(exam)
+    db.commit()
+    return {"message": "删除成功"}

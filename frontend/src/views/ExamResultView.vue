@@ -91,6 +91,7 @@
       <div class="actions">
         <router-link to="/exam" class="btn btn-primary">再来一次</router-link>
         <router-link to="/mistakes" class="btn">查看错题本</router-link>
+        <button class="btn btn-danger" @click="deleteExam">删除测验</button>
         <router-link to="/" class="btn">返回首页</router-link>
       </div>
     </template>
@@ -99,10 +100,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { examsApi, questionsApi } from '@/api'
 
 const route = useRoute()
+const router = useRouter()
 const result = ref(null)
 const questions = ref({})
 const loading = ref(true)
@@ -137,6 +139,16 @@ const loadResult = async () => {
 }
 
 onMounted(loadResult)
+
+const deleteExam = async () => {
+  if (!confirm('确定删除此测验？删除后无法恢复。')) return
+  try {
+    await examsApi.delete(route.params.id)
+    router.push('/')
+  } catch (e) {
+    alert('删除失败: ' + (e.response?.data?.detail || e.message))
+  }
+}
 </script>
 
 <style scoped>

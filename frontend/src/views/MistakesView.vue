@@ -74,6 +74,9 @@
           <button class="btn btn-primary" @click="reviewMistake(m.id)">
             记录复习
           </button>
+          <button class="btn btn-danger" @click="deleteMistake(m.id)">
+            移除
+          </button>
         </div>
       </div>
     </div>
@@ -155,6 +158,16 @@ const reviewMistake = async (id) => {
     await loadMistakes()
   } catch (e) {
     alert('操作失败: ' + (e.response?.data?.detail || e.message))
+  }
+}
+
+const deleteMistake = async (id) => {
+  if (!confirm('确定将此题从错题本中移除？')) return
+  try {
+    await mistakesApi.delete(id)
+    await loadMistakes()
+  } catch (e) {
+    alert('移除失败: ' + (e.response?.data?.detail || e.message))
   }
 }
 

@@ -10,6 +10,7 @@
           <span v-if="exam.mode === 'timed'" class="timer">
             剩余时间: {{ formatTime(remainingTime) }}
           </span>
+          <button class="btn btn-danger btn-sm" @click="abandonExam">放弃测验</button>
         </div>
         <div class="progress-bar">
           <div class="progress" :style="{ width: progressPercent + '%' }"></div>
@@ -239,6 +240,17 @@ onMounted(loadExam)
 onUnmounted(() => {
   if (timer) clearInterval(timer)
 })
+
+const abandonExam = async () => {
+  if (!confirm('确定放弃此测验？测验记录将被删除且无法恢复。')) return
+  try {
+    if (timer) clearInterval(timer)
+    await examsApi.delete(route.params.id)
+    router.push('/exam')
+  } catch (e) {
+    alert('操作失败: ' + (e.response?.data?.detail || e.message))
+  }
+}
 </script>
 
 <style scoped>

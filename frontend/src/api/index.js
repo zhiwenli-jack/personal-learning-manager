@@ -51,7 +51,8 @@ export const examsApi = {
   create: (data) => api.post('/exams', data),
   get: (id) => api.get(`/exams/${id}`),
   submit: (id, answers) => api.post(`/exams/${id}/submit`, { answers }),
-  getResult: (id) => api.get(`/exams/${id}/result`)
+  getResult: (id) => api.get(`/exams/${id}/result`),
+  delete: (id) => api.delete(`/exams/${id}`)
 }
 
 // 错题 API

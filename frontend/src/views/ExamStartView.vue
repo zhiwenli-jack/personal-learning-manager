@@ -89,6 +89,7 @@
             >
               查看结果
             </router-link>
+            <button class="btn btn-danger" @click="deleteExam(e.id)">删除</button>
           </div>
         </div>
       </div>
@@ -147,6 +148,16 @@ const startExam = async () => {
     alert('创建测验失败: ' + (e.response?.data?.detail || e.message))
   } finally {
     starting.value = false
+  }
+}
+
+const deleteExam = async (id) => {
+  if (!confirm('确定删除此测验？删除后无法恢复。')) return
+  try {
+    await examsApi.delete(id)
+    await loadExams()
+  } catch (e) {
+    alert('删除失败: ' + (e.response?.data?.detail || e.message))
   }
 }
 
