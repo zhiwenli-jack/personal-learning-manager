@@ -81,7 +81,7 @@ def calculate_grade(score: float) -> str:
         return "D"
 
 
-def _select_questions_by_priority(db: Session, direction_id: int, count: int) -> list[Question]:
+def _select_questions_by_priority(db: Session, direction_id: int, count: int, material_ids: list[int] | None = None) -> list[Question]:
     """按优先级选题：新题 > 易错题 > 错题 > 其他
     
     优先级说明：
@@ -89,17 +89,18 @@ def _select_questions_by_priority(db: Session, direction_id: int, count: int) ->
     - 易错题：在错题本中标记为 error_prone=True 的题目（无论是否已掌握）
     - 错题：在错题本中但非易错的题目（无论是否已掌握）
     - 其他：已答过但不在错题本中的题目
+    
+    参数：
+    - material_ids: 指定资料ID列表，为 None 或空列表时使用该方向全部资料
     """
     import logging
     logger = logging.getLogger(__name__)
     
-    # 该方向下的所有题目ID
-    all_q_ids = (
-        db.query(Question.id)
-        .join(Material)
-        .filter(Material.direction_id == direction_id)
-        .all()
-    )
+    # 该方向下的所有题目ID（可按资料筛选）
+    q_query = db.query(Question.id).join(Material).filter(Material.direction_id == direction_id)
+    if material_ids:
+        q_query = q_query.filter(Material.id.in_(material_ids))
+    all_q_ids = q_query.all()
     all_q_ids = {row[0] for row in all_q_ids}
     
     if not all_q_ids:
@@ -181,7 +182,7 @@ def get_exams(
 @router.post("", response_model=ExamWithQuestions)
 def create_exam(data: ExamCreate, db: Session = Depends(get_db)):
     """创建测验（按优先级选题：新题 > 易错题 > 错题 > 其他）"""
-    questions = _select_questions_by_priority(db, data.direction_id, data.question_count)
+    questions = _select_questions_by_priority(db, data.direction_id, data.question_count, data.material_ids)
     
     if not questions:
         raise HTTPException(status_code=400, detail="该方向下没有可用题目，请先上传资料")

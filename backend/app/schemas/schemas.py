@@ -108,6 +108,7 @@ class ExamCreate(BaseModel):
     time_limit: Optional[int] = None
     score_type: ScoreType = ScoreType.HUNDRED
     question_count: int = 10  # 题目数量
+    material_ids: Optional[list[int]] = None  # 指定资料ID列表，不选则该方向全部资料
 
 
 class ExamResponse(BaseModel):

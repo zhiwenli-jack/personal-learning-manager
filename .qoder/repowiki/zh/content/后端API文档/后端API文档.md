@@ -106,14 +106,14 @@ GAM --> GAMSERV
 **图表来源**
 - [backend/app/main.py](file://backend/app/main.py#L1-L68)
 - [backend/app/api/directions.py](file://backend/app/api/directions.py#L1-L51)
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L1-L203)
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L1-L380)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L1-L90)
 - [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L240)
-- [backend/app/api/mistakes.py](file://backend/app/api/mistakes.py#L1-L90)
+- [backend/app/api/mistakes.py](file://backend/app/api/mistakes.py#L1-L110)
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L1-L77)
 - [backend/app/api/gamification.py](file://backend/app/api/gamification.py#L1-L129)
-- [backend/app/models/models.py](file://backend/app/models/models.py#L1-L321)
-- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L1-L371)
+- [backend/app/models/models.py](file://backend/app/models/models.py#L1-L324)
+- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L1-L375)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L1-L163)
 - [backend/app/services/gamification_service.py](file://backend/app/services/gamification_service.py#L1-L482)
@@ -134,8 +134,8 @@ GAM --> GAMSERV
 
 **章节来源**
 - [backend/app/main.py](file://backend/app/main.py#L1-L68)
-- [backend/app/models/models.py](file://backend/app/models/models.py#L1-L321)
-- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L1-L371)
+- [backend/app/models/models.py](file://backend/app/models/models.py#L1-L324)
+- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L1-L375)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L1-L163)
 - [backend/app/services/gamification_service.py](file://backend/app/services/gamification_service.py#L1-L482)
@@ -163,10 +163,10 @@ SERVICE -.-> DASH
 
 **图表来源**
 - [backend/app/main.py](file://backend/app/main.py#L1-L68)
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L1-L203)
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L1-L380)
 - [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L240)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
-- [backend/app/models/models.py](file://backend/app/models/models.py#L1-L321)
+- [backend/app/models/models.py](file://backend/app/models/models.py#L1-L324)
 
 ## 详细组件分析
 
@@ -198,6 +198,10 @@ SERVICE -.-> DASH
 - 错误处理：方向不存在、API密钥未配置、处理异常回滚状态
 - SSE：/api/materials/{material_id}/progress
 
+**更新** 新增了两个重要端点：
+- POST /api/materials/upload-file：支持文件上传（PDF/DOCX/MD/TXT），直接提取文本后处理
+- POST /api/materials/from-url：从URL抓取网页内容，直接提取文本后处理
+
 接口定义
 - GET /api/materials
   - 查询参数：direction_id(int, 可选)
@@ -206,6 +210,14 @@ SERVICE -.-> DASH
   - 请求体：MaterialCreate
   - 响应：MaterialResponse
   - 说明：同步处理，完成后状态为processed
+- POST /api/materials/upload-file
+  - 表单：title、direction_id、file
+  - 响应：MaterialResponse
+  - 说明：支持PDF/DOCX/MD/TXT文件上传，直接提取文本后处理
+- POST /api/materials/from-url
+  - 请求体：MaterialFromUrlRequest（包含title、url、direction_id）
+  - 响应：MaterialResponse
+  - 说明：从URL抓取网页内容，直接提取文本后处理
 - GET /api/materials/{material_id}/progress
   - 响应：text/event-stream
   - 事件：extracting/extracted/generating/generated/saving/completed/error
@@ -219,7 +231,7 @@ SSE事件结构
 - data/material_id: 额外数据（如知识点数量、题目数量、材料ID）
 
 **章节来源**
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L1-L203)
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L1-L380)
 - [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L38-L58)
 - [backend/app/models/models.py](file://backend/app/models/models.py#L78-L93)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
@@ -250,8 +262,8 @@ end
 ```
 
 **图表来源**
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L164-L185)
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L27-L80)
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L319-L340)
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L176-L228)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L37-L114)
 
 ### 题目管理
@@ -333,10 +345,12 @@ API-->>Client : ExamResult
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L115-L151)
 - [backend/app/models/models.py](file://backend/app/models/models.py#L136-L169)
 
-### 错题管理
-- 功能：按方向与掌握状态筛选、详情、更新（掌握状态/复习次数自增）、删除
+### 错题管理（增强）
+- 功能：按方向与掌握状态筛选、详情、更新（掌握状态/复习次数自增/易错标记）、删除
 - 认证与权限：无显式鉴权装饰器
 - 错误处理：不存在返回404
+
+**更新** 错题管理功能得到增强，现在支持更全面的状态管理：
 
 接口定义
 - GET /api/mistakes
@@ -347,13 +361,21 @@ API-->>Client : ExamResult
 - PATCH /api/mistakes/{mistake_id}
   - 请求体：MistakeUpdate
   - 响应：MistakeResponse
+  - 说明：支持更新mastered、review_count、error_prone状态
 - DELETE /api/mistakes/{mistake_id}
   - 响应：{"message": "删除成功"}
 
+**更新** MistakeUpdate现在包含三个可选字段：
+- mastered: 是否已掌握
+- review_count: 复习次数（可单独更新或自增）
+- error_prone: 是否为易错题标记
+
+当将错题标记为已掌握时，系统会自动触发游戏化奖励机制。
+
 **章节来源**
-- [backend/app/api/mistakes.py](file://backend/app/api/mistakes.py#L1-L90)
-- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L173-L191)
-- [backend/app/models/models.py](file://backend/app/models/models.py#L155-L169)
+- [backend/app/api/mistakes.py](file://backend/app/api/mistakes.py#L1-L110)
+- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L173-L195)
+- [backend/app/models/models.py](file://backend/app/models/models.py#L155-L172)
 
 ### 知识解析（文本/文件/URL）
 - 功能：解析纯文本、上传文件、解析URL，支持任务列表、详情、删除；内部调用解析服务与DashScope
@@ -380,7 +402,7 @@ API-->>Client : ExamResult
 
 **章节来源**
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L1-L77)
-- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L194-L265)
+- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L194-L269)
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L1-L163)
 
 ### 游戏化系统（新增）
@@ -409,8 +431,8 @@ API-->>Client : ExamResult
 
 **章节来源**
 - [backend/app/api/gamification.py](file://backend/app/api/gamification.py#L1-L129)
-- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L268-L371)
-- [backend/app/models/models.py](file://backend/app/models/models.py#L225-L321)
+- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L268-L375)
+- [backend/app/models/models.py](file://backend/app/models/models.py#L225-L324)
 - [backend/app/services/gamification_service.py](file://backend/app/services/gamification_service.py#L1-L482)
 - [backend/app/core/achievements.py](file://backend/app/core/achievements.py#L1-L121)
 - [backend/app/core/daily_tasks.py](file://backend/app/core/daily_tasks.py#L1-L53)
@@ -449,10 +471,10 @@ GAMSERV --> LEVELCONFIG["core/level_config"]
 **图表来源**
 - [backend/pyproject.toml](file://backend/pyproject.toml#L1-L29)
 - [backend/app/api/directions.py](file://backend/app/api/directions.py#L1-L51)
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L1-L203)
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L1-L380)
 - [backend/app/api/questions.py](file://backend/app/api/questions.py#L1-L90)
 - [backend/app/api/exams.py](file://backend/app/api/exams.py#L1-L240)
-- [backend/app/api/mistakes.py](file://backend/app/api/mistakes.py#L1-L90)
+- [backend/app/api/mistakes.py](file://backend/app/api/mistakes.py#L1-L110)
 - [backend/app/api/parse.py](file://backend/app/api/parse.py#L1-L77)
 - [backend/app/api/gamification.py](file://backend/app/api/gamification.py#L1-L129)
 - [backend/app/services/qwen_service.py](file://backend/app/services/qwen_service.py#L1-L156)
@@ -488,7 +510,7 @@ GAMSERV --> LEVELCONFIG["core/level_config"]
 
 ## 故障排查指南
 - 常见错误码
-  - 400：参数非法（如空文本、空URL、方向无题）
+  - 400：参数非法（如空文本、空URL、方向无题、未上传文件）
   - 404：资源不存在（方向/资料/题目/测验/错题/任务）
   - 500：服务器内部错误（如DashScope密钥未配置、处理异常）
 - DashScope相关
@@ -498,6 +520,7 @@ GAMSERV --> LEVELCONFIG["core/level_config"]
 - 资料处理
   - 若状态长期为pending，检查SSE流是否被消费
   - 处理失败会回滚状态为failed，可查看错误信息
+  - **新增的文件上传和URL解析功能需要检查文件大小限制和网络连接**
 - 测验评分
   - 主观题评分失败会返回默认结果，建议重试或检查输入格式
 - 游戏化系统
@@ -510,14 +533,15 @@ GAMSERV --> LEVELCONFIG["core/level_config"]
   - **游戏化服务包含详细的事件处理日志**
 
 **章节来源**
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L88-L160)
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L127-L144)
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L156-L173)
 - [backend/app/api/exams.py](file://backend/app/api/exams.py#L134-L140)
 - [backend/app/services/parse_service.py](file://backend/app/services/parse_service.py#L72-L78)
 - [backend/app/core/config.py](file://backend/app/core/config.py#L16-L20)
 - [backend/app/services/gamification_service.py](file://backend/app/services/gamification_service.py#L1-L482)
 
 ## 结论
-本API提供了完整的个人学习管理能力，覆盖从资料解析、题目生成、测验评测到错题巩固的闭环，以及**完整的游戏化系统**。通过SSE实现流畅的处理体验，结合DashScope实现智能化内容处理。**游戏化系统包含用户档案、成就系统、每日任务、经验管理、方向探索进度等功能**，为用户提供持续的学习动力和成就感。建议在生产环境中完善鉴权、限流与监控，并持续优化数据库索引与外部服务调用策略。
+本API提供了完整的个人学习管理能力，覆盖从资料解析、题目生成、测验评测到错题巩固的闭环，以及**完整的游戏化系统**。通过SSE实现流畅的处理体验，结合DashScope实现智能化内容处理。**游戏化系统包含用户档案、成就系统、每日任务、经验管理、方向探索进度等功能**，为用户提供持续的学习动力和成就感。**新增的文件上传和URL解析端点大大增强了资料导入的便利性**。建议在生产环境中完善鉴权、限流与监控，并持续优化数据库索引与外部服务调用策略。
 
 ## 附录
 
@@ -529,6 +553,7 @@ GAMSERV --> LEVELCONFIG["core/level_config"]
   - 修改现有字段需引入新版本端点或迁移脚本
   - 保持SSE事件结构稳定，新增字段需向后兼容
   - **游戏化API作为新增模块，不影响现有API兼容性**
+  - **新增的文件上传和URL解析端点保持向后兼容**
 
 **章节来源**
 - [backend/app/main.py](file://backend/app/main.py#L19-L25)
@@ -548,8 +573,8 @@ GAMSERV --> LEVELCONFIG["core/level_config"]
 - 客户端消费：使用EventSource监听，注意断线重连与错误处理
 
 **章节来源**
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L164-L185)
-- [backend/app/api/materials.py](file://backend/app/api/materials.py#L27-L80)
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L319-L340)
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L176-L228)
 
 ### 数据模型概览
 ```mermaid
@@ -571,7 +596,7 @@ USERPROFILE ||--o{ DIRECTIONPROGRESS : "探索"
 ```
 
 **图表来源**
-- [backend/app/models/models.py](file://backend/app/models/models.py#L63-L321)
+- [backend/app/models/models.py](file://backend/app/models/models.py#L63-L324)
 
 ### 示例请求与响应（路径指引）
 - 学习方向
@@ -582,6 +607,12 @@ USERPROFILE ||--o{ DIRECTIONPROGRESS : "探索"
 - 学习资料
   - POST /api/materials
     - 请求体参考：MaterialCreate
+    - 响应体参考：MaterialResponse
+  - POST /api/materials/upload-file
+    - 表单字段：title、direction_id、file
+    - 响应体参考：MaterialResponse
+  - POST /api/materials/from-url
+    - 请求体参考：MaterialFromUrlRequest
     - 响应体参考：MaterialResponse
   - GET /api/materials/{material_id}/progress
     - 响应类型：text/event-stream
@@ -599,11 +630,12 @@ USERPROFILE ||--o{ DIRECTIONPROGRESS : "探索"
 - 错题
   - PATCH /api/mistakes/{mistake_id}
     - 请求体参考：MistakeUpdate
-  - 参考路径：[backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L186-L189)
+    - 包含字段：mastered、review_count、error_prone
+  - 参考路径：[backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L186-L195)
 - 知识解析
   - POST /api/parse/file
     - 表单字段：title、direction_id、file
-  - 参考路径：[backend/app/api/parse.py](file://backend/app/api/parse.py#L26-L37)
+  - 参考路径：[backend/app/api/parse.py](file://backend/app/api/parse.py#L34-L45)
 - 游戏化系统
   - GET /api/gamification/profile
     - 响应体参考：UserProfileResponse
@@ -613,7 +645,7 @@ USERPROFILE ||--o{ DIRECTIONPROGRESS : "探索"
     - 响应体参考：DailyTaskResponse数组
   - GET /api/gamification/exp-logs?limit=20&offset=0
     - 响应体参考：ExpLogResponse数组
-  - 参考路径：[backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L268-L371)
+  - 参考路径：[backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L268-L375)
 
 ### 游戏化系统详细说明
 
@@ -645,8 +677,50 @@ USERPROFILE ||--o{ DIRECTIONPROGRESS : "探索"
 - 实时计算：未记录的进度实时计算
 
 **章节来源**
-- [backend/app/models/models.py](file://backend/app/models/models.py#L238-L321)
+- [backend/app/models/models.py](file://backend/app/models/models.py#L238-L324)
 - [backend/app/core/achievements.py](file://backend/app/core/achievements.py#L1-L121)
 - [backend/app/core/daily_tasks.py](file://backend/app/core/daily_tasks.py#L1-L53)
 - [backend/app/core/level_config.py](file://backend/app/core/level_config.py#L1-L59)
 - [backend/app/services/gamification_service.py](file://backend/app/services/gamification_service.py#L1-L482)
+
+### 新增端点详细说明
+
+#### 文件上传资料端点
+- POST /api/materials/upload-file
+- 功能：支持PDF、DOCX、MD、TXT格式文件上传，自动提取文本内容后进行知识点提炼和题目生成
+- 请求格式：multipart/form-data
+- 字段要求：
+  - title: 资料标题（必填）
+  - direction_id: 学习方向ID（必填）
+  - file: 文件对象（必填）
+- 错误处理：
+  - 400：未上传文件、文件格式不支持、文件大小超限
+  - 500：文件处理失败、内容提取失败
+
+#### URL资料端点
+- POST /api/materials/from-url
+- 功能：从指定URL抓取网页内容，自动提取文本后进行知识点提炼和题目生成
+- 请求格式：JSON
+- 字段要求：
+  - title: 资料标题（必填）
+  - url: 网页URL（必填）
+  - direction_id: 学习方向ID（必填）
+- 错误处理：
+  - 400：URL为空、URL格式无效、网络请求失败
+  - 500：网页抓取失败、内容提取失败
+
+#### 增强的错题管理
+- PATCH /api/mistakes/{mistake_id}
+- 功能：支持更全面的错题状态管理
+- 请求字段：
+  - mastered: 是否已掌握（可选）
+  - review_count: 复习次数（可选，若不提供则自动+1）
+  - error_prone: 是否为易错题（可选）
+- 特殊行为：
+  - 当mastered从false变为true时，自动触发游戏化奖励机制
+  - 自动更新last_error_at时间戳
+
+**章节来源**
+- [backend/app/api/materials.py](file://backend/app/api/materials.py#L116-L173)
+- [backend/app/api/mistakes.py](file://backend/app/api/mistakes.py#L48-L97)
+- [backend/app/schemas/schemas.py](file://backend/app/schemas/schemas.py#L190-L195)

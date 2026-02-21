@@ -11,6 +11,25 @@
         </select>
       </div>
       
+      <div v-if="examConfig.direction_id && materials.length > 0" class="form-group">
+        <label>选择资料 <span class="hint">（不选则使用该方向全部资料）</span></label>
+        <div class="material-list">
+          <label 
+            v-for="m in materials" 
+            :key="m.id" 
+            class="material-item"
+            :class="{ selected: examConfig.material_ids.includes(m.id) }"
+          >
+            <input 
+              type="checkbox" 
+              :value="m.id" 
+              v-model="examConfig.material_ids"
+            >
+            <span class="material-title">{{ m.title }}</span>
+          </label>
+        </div>
+      </div>
+      
       <div class="form-group">
         <label>测验模式</label>
         <div class="radio-group">
@@ -98,21 +117,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { directionsApi, examsApi } from '@/api'
+import { directionsApi, examsApi, materialsApi } from '@/api'
 
 const router = useRouter()
 const directions = ref([])
 const exams = ref([])
 const starting = ref(false)
+const materials = ref([])
 
 const examConfig = ref({
   direction_id: null,
   mode: 'untimed',
   time_limit: 30,
   score_type: 'hundred',
-  question_count: 10
+  question_count: 10,
+  material_ids: []
 })
 
 const getDirectionName = (id) => {
@@ -138,11 +159,34 @@ const loadExams = async () => {
   }
 }
 
+const loadMaterials = async (directionId) => {
+  if (!directionId) {
+    materials.value = []
+    return
+  }
+  try {
+    const res = await materialsApi.getAll(directionId)
+    materials.value = res.data
+  } catch (e) {
+    console.error('加载资料失败:', e)
+    materials.value = []
+  }
+}
+
+watch(() => examConfig.value.direction_id, (newId) => {
+  examConfig.value.material_ids = []
+  loadMaterials(newId)
+})
+
 const startExam = async () => {
   if (!examConfig.value.direction_id) return
   starting.value = true
   try {
-    const res = await examsApi.create(examConfig.value)
+    const payload = { ...examConfig.value }
+    if (!payload.material_ids || payload.material_ids.length === 0) {
+      payload.material_ids = null
+    }
+    const res = await examsApi.create(payload)
     router.push(`/exam/${res.data.id}`)
   } catch (e) {
     alert('创建测验失败: ' + (e.response?.data?.detail || e.message))
@@ -266,6 +310,65 @@ h1 {
 
 .btn-lg:active {
   transform: translateY(0);
+}
+
+.hint {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--color-text-tertiary);
+}
+
+.material-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.material-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
+  background: var(--color-bg-tertiary);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.material-item:hover {
+  border-color: var(--color-border);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.material-item.selected {
+  border-color: var(--color-accent-primary);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.material-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-accent-primary);
+  flex-shrink: 0;
+}
+
+.material-title {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.material-item.selected .material-title {
+  color: var(--color-accent-primary);
+  font-weight: 600;
 }
 
 .history-section {
