@@ -187,12 +187,14 @@ def create_exam(data: ExamCreate, db: Session = Depends(get_db)):
     if not questions:
         raise HTTPException(status_code=400, detail="该方向下没有可用题目，请先上传资料")
     
-    # 创建测验
+    # 创建测验，持久化选中的题目ID
+    selected_ids = [q.id for q in questions]
     exam = Exam(
         direction_id=data.direction_id,
         mode=data.mode,
         time_limit=data.time_limit if data.mode == ExamMode.TIMED else None,
         score_type=data.score_type,
+        question_ids=selected_ids,
     )
     db.add(exam)
     db.commit()
@@ -221,13 +223,19 @@ def get_exam(exam_id: int, db: Session = Depends(get_db)):
     if not exam:
         raise HTTPException(status_code=404, detail="测验不存在")
     
-    # 获取该测验的题目(通过已有答案或重新查询)
-    answered_question_ids = [a.question_id for a in exam.answers]
-    
-    if answered_question_ids:
+    # 获取该测验的题目：优先从持久化的 question_ids 读取
+    questions = []
+    if exam.question_ids:
+        questions = db.query(Question).filter(Question.id.in_(exam.question_ids)).all()
+        # 保持创建时的顺序
+        id_order = {qid: idx for idx, qid in enumerate(exam.question_ids)}
+        questions.sort(key=lambda q: id_order.get(q.id, 0))
+    elif exam.answers:
+        # 兼容旧数据：从已有答案中获取题目
+        answered_question_ids = [a.question_id for a in exam.answers]
         questions = db.query(Question).filter(Question.id.in_(answered_question_ids)).all()
     else:
-        # 如果还没答题，重新查询题目
+        # 最终 fallback：按方向查询
         questions = (
             db.query(Question)
             .join(Material)

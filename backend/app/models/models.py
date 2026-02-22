@@ -125,6 +125,7 @@ class Exam(Base):
     status = Column(Enum(ExamStatus), default=ExamStatus.IN_PROGRESS, comment="测验状态")
     score = Column(Numeric(5, 2), nullable=True, comment="最终得分")
     grade = Column(String(1), nullable=True, comment="等级A/B/C/D")
+    question_ids = Column(JSON, nullable=True, comment="选中的题目ID列表")
     created_at = Column(DateTime, default=datetime.now, comment="创建时间")
     completed_at = Column(DateTime, nullable=True, comment="完成时间")
     
