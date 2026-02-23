@@ -23,6 +23,15 @@
         <option :value="null">全部资料</option>
         <option v-for="m in materials" :key="m.id" :value="m.id">{{ m.title }}</option>
       </select>
+      
+      <div class="view-toggle">
+        <button :class="['toggle-btn', { active: viewMode === 'card' }]" @click="viewMode = 'card'" title="卡片视图">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+        </button>
+        <button :class="['toggle-btn', { active: viewMode === 'table' }]" @click="viewMode = 'table'" title="表格视图">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="14" height="3" rx="1"/><rect x="1" y="6" width="14" height="3" rx="1"/><rect x="1" y="11" width="14" height="3" rx="1"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- 题目列表 -->
@@ -30,7 +39,7 @@
     <div v-else-if="questions.length === 0" class="empty">
       暂无题目，请先上传资料生成题目
     </div>
-    <div v-else class="questions-list">
+    <div v-else-if="viewMode === 'card'" class="questions-list">
       <div v-for="q in questions" :key="q.id" class="card question-card">
         <div class="question-header">
           <div class="header-left">
@@ -77,6 +86,42 @@
           <button class="btn btn-sm btn-warning" @click="rateQuestion(q.id, 'poor')">待优化</button>
         </div>
       </div>
+    </div>
+
+    <!-- 题目表格视图 -->
+    <div v-else class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>类型</th>
+            <th>题目内容</th>
+            <th>答案</th>
+            <th>难度</th>
+            <th>评价</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="q in questions" :key="q.id">
+            <td><span :class="['tag', typeClass(q.type)]">{{ typeText(q.type) }}</span></td>
+            <td class="td-question">{{ q.content }}</td>
+            <td class="td-answer">{{ formatAnswer(q.answer, q.type) }}</td>
+            <td>{{ q.difficulty }}/5</td>
+            <td>
+              <span v-if="q.rating" :class="['tag', ratingClass(q.rating)]">
+                {{ q.rating === 'good' ? '好题' : '待优化' }}
+              </span>
+              <span v-else class="text-muted">-</span>
+            </td>
+            <td>
+              <div class="table-actions">
+                <button class="btn btn-sm" @click="editQuestion(q)">编辑</button>
+                <button class="btn btn-sm btn-danger" @click="deleteQuestion(q.id)">删除</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- 编辑题目弹窗 -->
@@ -163,6 +208,7 @@ const questions = ref([])
 const loading = ref(true)
 const showEditModal = ref(false)
 const editingQuestion = ref({})
+const viewMode = ref('card')
 
 const filters = ref({
   direction_id: null,
@@ -549,5 +595,121 @@ onMounted(async () => {
     max-width: 100%;
     margin: 1rem;
   }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+}
+
+/* ============ View Toggle ============ */
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: calc(var(--radius-sm) - 2px);
+  transition: all var(--transition-fast);
+}
+
+.toggle-btn:hover {
+  color: var(--color-text-secondary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.toggle-btn.active {
+  background: var(--color-accent-primary);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+}
+
+/* ============ Data Table ============ */
+.table-wrapper {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table thead {
+  background: var(--color-bg-tertiary);
+}
+
+.data-table th {
+  padding: 0.875rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.75rem 1rem;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.data-table tbody tr:hover {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.td-question {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.td-answer {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--color-success);
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.text-muted {
+  color: var(--color-text-tertiary);
 }
 </style>

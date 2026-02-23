@@ -24,6 +24,14 @@
         <option :value="null">全部方向</option>
         <option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option>
       </select>
+      <div class="view-toggle">
+        <button :class="['toggle-btn', { active: materialsViewMode === 'card' }]" @click="materialsViewMode = 'card'" title="卡片视图">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+        </button>
+        <button :class="['toggle-btn', { active: materialsViewMode === 'table' }]" @click="materialsViewMode = 'table'" title="表格视图">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="14" height="3" rx="1"/><rect x="1" y="6" width="14" height="3" rx="1"/><rect x="1" y="11" width="14" height="3" rx="1"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- 警告提示 -->
@@ -37,7 +45,7 @@
     <div v-else-if="materials.length === 0" class="empty">
       暂无资料，请先上传
     </div>
-    <div v-else class="materials-list">
+    <div v-else-if="materialsViewMode === 'card'" class="materials-list">
       <div 
         v-for="m in materials" 
         :key="m.id" 
@@ -92,6 +100,42 @@
           <button class="btn btn-danger" @click="deleteMaterial(m.id)">删除</button>
         </div>
       </div>
+    </div>
+
+    <!-- 资料表格视图 -->
+    <div v-else class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>标题</th>
+            <th>学习方向</th>
+            <th>状态</th>
+            <th>知识点</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="m in materials" :key="m.id" :data-material-id="m.id">
+            <td class="td-title">{{ m.title }}</td>
+            <td>
+              <select 
+                v-model="m.direction_id" 
+                class="form-control form-control-sm"
+                @change="updateMaterialDirection(m.id, m.direction_id)"
+              >
+                <option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option>
+              </select>
+            </td>
+            <td><span :class="['tag', statusClass(m.status)]">{{ statusText(m.status) }}</span></td>
+            <td>{{ m.key_points ? m.key_points.length : 0 }}</td>
+            <td class="td-time">{{ formatTime(m.created_at) }}</td>
+            <td>
+              <button class="btn btn-sm btn-danger" @click="deleteMaterial(m.id)">删除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- 上传资料弹窗 -->
@@ -196,6 +240,14 @@
           <option :value="null">全部方向</option>
           <option v-for="d in directions" :key="d.id" :value="d.id">{{ d.name }}</option>
         </select>
+        <div class="view-toggle">
+          <button :class="['toggle-btn', { active: parseViewMode === 'card' }]" @click="parseViewMode = 'card'" title="卡片视图">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+          </button>
+          <button :class="['toggle-btn', { active: parseViewMode === 'table' }]" @click="parseViewMode = 'table'" title="表格视图">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="14" height="3" rx="1"/><rect x="1" y="6" width="14" height="3" rx="1"/><rect x="1" y="11" width="14" height="3" rx="1"/></svg>
+          </button>
+        </div>
       </div>
 
       <!-- 解析表单 -->
@@ -295,7 +347,7 @@
       <div v-else-if="parseTasks.length === 0" class="empty">
         暂无解析任务，请创建新任务
       </div>
-      <div v-else class="parse-tasks-list">
+      <div v-else-if="parseViewMode === 'card'" class="parse-tasks-list">
         <div 
           v-for="task in parseTasks" 
           :key="task.id" 
@@ -320,6 +372,37 @@
             <button class="btn btn-sm btn-danger" @click.stop="deleteParseTask(task.id)">删除</button>
           </div>
         </div>
+      </div>
+
+      <!-- 解析任务表格视图 -->
+      <div v-else class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>标题</th>
+              <th>来源</th>
+              <th>状态</th>
+              <th>摘要</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="task in parseTasks" :key="task.id" class="clickable-row" @click="showTaskDetailFn(task.id)">
+              <td class="td-title">{{ task.title }}</td>
+              <td><span class="tag tag-blue">{{ parseSourceText(task.source_type) }}</span></td>
+              <td><span :class="['tag', parseStatusClass(task.status)]">{{ parseStatusText(task.status) }}</span></td>
+              <td class="td-summary">{{ task.summary || '-' }}</td>
+              <td class="td-time">{{ formatTime(task.created_at) }}</td>
+              <td>
+                <div class="table-actions">
+                  <button class="btn btn-sm" @click.stop="showTaskDetailFn(task.id)">详情</button>
+                  <button class="btn btn-sm btn-danger" @click.stop="deleteParseTask(task.id)">删除</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- 任务详情弹窗 -->
@@ -463,6 +546,8 @@ const fileInput = ref(null)
 
 // ============ Tab 切换 ============
 const activeTab = ref('materials')
+const materialsViewMode = ref('card')
+const parseViewMode = ref('card')
 
 // ============ 知识解析相关 ============
 const parseSelectedDirection = ref(null)
@@ -935,6 +1020,9 @@ onUnmounted(() => {
 }
 
 .filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
@@ -1405,6 +1493,127 @@ onUnmounted(() => {
     padding: 0.75rem 1rem;
     font-size: 0.9rem;
   }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+}
+
+/* ============ View Toggle ============ */
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  margin-left: auto;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: calc(var(--radius-sm) - 2px);
+  transition: all var(--transition-fast);
+}
+
+.toggle-btn:hover {
+  color: var(--color-text-secondary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.toggle-btn.active {
+  background: var(--color-accent-primary);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+}
+
+/* ============ Data Table ============ */
+.table-wrapper {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table thead {
+  background: var(--color-bg-tertiary);
+}
+
+.data-table th {
+  padding: 0.875rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.75rem 1rem;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.data-table tbody tr:hover {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.td-title {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.td-time {
+  white-space: nowrap;
+  color: var(--color-text-tertiary);
+  font-size: 0.85rem;
+}
+
+.td-summary {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-tertiary);
+  font-size: 0.85rem;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 /* ============ Page Tab System ============ */
