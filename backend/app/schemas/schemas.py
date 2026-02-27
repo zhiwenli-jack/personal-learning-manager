@@ -373,3 +373,114 @@ class GamificationReward(BaseModel):
     new_title: Optional[str] = None
     achievements_unlocked: list[AchievementInfo] = []
     tasks_completed: list[str] = []
+
+
+# ============ 学习模式 Schemas ============
+
+class CourseCreateRequest(BaseModel):
+    """创建学习课程请求"""
+    title: str
+    description: Optional[str] = None
+    direction_id: Optional[int] = None
+    material_ids: list[int]
+
+
+class KnowledgePointMasteryUpdate(BaseModel):
+    """更新知识点掌握度"""
+    mastery_level: float
+
+
+class CourseKnowledgePointResponse(BaseModel):
+    """课程知识点响应"""
+    id: int
+    name: str
+    description: str
+    tier: str
+    category: Optional[str] = None
+    importance: int
+    parent_id: Optional[int] = None
+    order_index: int
+    estimated_minutes: int
+    mastery_level: float = 0
+    practice_count: int = 0
+    correct_count: int = 0
+    children_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class KnowledgeRelationResponse(BaseModel):
+    """知识关联响应"""
+    id: int
+    source_point_id: int
+    source_point_name: str
+    target_point_id: int
+    target_point_name: str
+    relation_type: str
+    strength: int
+    description: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LearningCourseListResponse(BaseModel):
+    """学习课程列表响应"""
+    id: int
+    title: str
+    description: Optional[str] = None
+    direction_id: Optional[int] = None
+    status: str
+    total_points: int = 0
+    mastered_points: int = 0
+    progress_rate: float = 0
+    material_count: int = 0
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LearningCourseDetailResponse(LearningCourseListResponse):
+    """学习课程详情响应"""
+    material_ids: list[int] = []
+    knowledge_points: list[CourseKnowledgePointResponse] = []
+    relations: list[KnowledgeRelationResponse] = []
+
+
+class MindMapResponse(BaseModel):
+    """思维导图响应"""
+    course_id: int
+    title: str
+    mindmap_markdown: str
+
+
+class LearningProgressResponse(BaseModel):
+    """学习进度响应"""
+    course_id: int
+    total_points: int = 0
+    mastered_points: int = 0
+    progress_rate: float = 0
+    beginner_total: int = 0
+    beginner_mastered: int = 0
+    intermediate_total: int = 0
+    intermediate_mastered: int = 0
+    advanced_total: int = 0
+    advanced_mastered: int = 0
+    weak_points: list[CourseKnowledgePointResponse] = []
+    estimated_remaining_minutes: int = 0
+
+
+class RecommendationItem(BaseModel):
+    """推荐项"""
+    knowledge_point_id: int
+    knowledge_point_name: str
+    tier: str
+    reason: str
+    priority: int = 3
+    related_weak_points: list[str] = []
+
+
+class RecommendationsResponse(BaseModel):
+    """个性化推荐响应"""
+    course_id: int
+    recommendations: list[RecommendationItem] = []

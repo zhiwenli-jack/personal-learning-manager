@@ -20,6 +20,15 @@ from app.schemas.schemas import (
     AnswerResponse,
     MistakeResponse,
     MistakeUpdate,
+    CourseCreateRequest,
+    CourseKnowledgePointResponse,
+    KnowledgeRelationResponse,
+    LearningCourseListResponse,
+    LearningCourseDetailResponse,
+    MindMapResponse,
+    LearningProgressResponse,
+    RecommendationItem,
+    RecommendationsResponse,
 )
 
 __all__ = [
@@ -43,4 +52,13 @@ __all__ = [
     "AnswerResponse",
     "MistakeResponse",
     "MistakeUpdate",
+    "CourseCreateRequest",
+    "CourseKnowledgePointResponse",
+    "KnowledgeRelationResponse",
+    "LearningCourseListResponse",
+    "LearningCourseDetailResponse",
+    "MindMapResponse",
+    "LearningProgressResponse",
+    "RecommendationItem",
+    "RecommendationsResponse",
 ]

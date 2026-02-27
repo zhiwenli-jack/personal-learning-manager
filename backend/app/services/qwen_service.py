@@ -15,9 +15,9 @@ class QwenService:
         self.model = settings.qwen_model
         self.base_url = settings.qwen_base_url
         
-    async def _chat(self, messages: list[dict], temperature: float = 0.7) -> str:
+    async def _chat(self, messages: list[dict], temperature: float = 0.7, timeout: float = 60.0) -> str:
         """调用通义千问聊天接口"""
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
                 f"{self.base_url}/chat/completions",
                 headers={

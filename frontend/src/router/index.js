@@ -45,6 +45,11 @@ const routes = [
     path: '/achievements',
     name: 'Achievements',
     component: () => import('@/views/AchievementsView.vue')
+  },
+  {
+    path: '/learning-mode',
+    name: 'LearningMode',
+    component: () => import('@/views/LearningModeView.vue')
   }
 ]
 

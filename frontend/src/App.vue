@@ -12,6 +12,7 @@
         <router-link to="/mistakes"><span>错题本</span></router-link>
         <router-link to="/map"><span>探险地图</span></router-link>
         <router-link to="/achievements"><span>成就</span></router-link>
+        <router-link to="/learning-mode"><span>学习模式</span></router-link>
       </div>
     </nav>
     <main class="main-content">

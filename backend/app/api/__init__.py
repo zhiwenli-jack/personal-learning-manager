@@ -6,6 +6,7 @@ from app.api.exams import router as exams_router
 from app.api.mistakes import router as mistakes_router
 from app.api.parse import router as parse_router
 from app.api.gamification import router as gamification_router
+from app.api.learning_mode import router as learning_mode_router
 
 __all__ = [
     "directions_router",
@@ -15,4 +16,5 @@ __all__ = [
     "mistakes_router",
     "parse_router",
     "gamification_router",
+    "learning_mode_router",
 ]

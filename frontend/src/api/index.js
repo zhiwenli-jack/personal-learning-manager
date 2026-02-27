@@ -93,4 +93,18 @@ export const gamificationApi = {
   getExpLogs: (params) => api.get('/gamification/exp-logs', { params })
 }
 
+// 学习模式 API
+export const learningModeApi = {
+  getCourses: () => api.get('/learning-mode/courses'),
+  createCourse: (data) => api.post('/learning-mode/courses', data),
+  getCourseDetail: (courseId) => api.get(`/learning-mode/courses/${courseId}`),
+  generateCourse: (courseId) => api.post(`/learning-mode/courses/${courseId}/generate`),
+  deleteCourse: (courseId) => api.delete(`/learning-mode/courses/${courseId}`),
+  getMindmap: (courseId) => api.get(`/learning-mode/courses/${courseId}/mindmap`),
+  getProgress: (courseId) => api.get(`/learning-mode/courses/${courseId}/progress`),
+  getRecommendations: (courseId) => api.get(`/learning-mode/courses/${courseId}/recommendations`),
+  updatePointMastery: (courseId, pointId, masteryLevel) =>
+    api.patch(`/learning-mode/courses/${courseId}/points/${pointId}`, { mastery_level: masteryLevel }),
+}
+
 export default api

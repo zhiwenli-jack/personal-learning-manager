@@ -52,6 +52,28 @@ class SourceType(str, PyEnum):
     URL = "url"
 
 
+class KnowledgeTier(str, PyEnum):
+    """知识层级"""
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    ADVANCED = "advanced"
+
+
+class RelationType(str, PyEnum):
+    """知识关联类型"""
+    PREREQUISITE = "prerequisite"   # 前置依赖
+    RELATED = "related"             # 相关关联
+    EXTENDS = "extends"             # 扩展深化
+
+
+class CourseStatus(str, PyEnum):
+    """课程状态"""
+    PENDING = "pending"
+    GENERATING = "generating"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class TaskStatus(str, PyEnum):
     """解析任务状态"""
     PENDING = "pending"
@@ -73,6 +95,7 @@ class Direction(Base):
     materials = relationship("Material", back_populates="direction")
     exams = relationship("Exam", back_populates="direction")
     parse_tasks = relationship("ParseTask", back_populates="direction")
+    learning_courses = relationship("LearningCourse", back_populates="direction")
 
 
 class Material(Base):
@@ -322,3 +345,75 @@ class DirectionProgress(Base):
     
     # 关联
     direction = relationship("Direction")
+
+
+# ============ 学习模式模型 ============
+
+class LearningCourse(Base):
+    """学习课程表"""
+    __tablename__ = "learning_courses"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, default=1, comment="用户ID")
+    title = Column(String(200), nullable=False, comment="课程标题")
+    description = Column(Text, nullable=True, comment="课程描述")
+    direction_id = Column(Integer, ForeignKey("directions.id", ondelete="SET NULL"), nullable=True, comment="主学习方向ID")
+    material_ids = Column(JSON, nullable=False, comment="选中的资料ID列表")
+    status = Column(Enum(CourseStatus), default=CourseStatus.PENDING, comment="课程状态")
+    mindmap_markdown = Column(Text, nullable=True, comment="思维导图Markdown")
+    total_points = Column(Integer, nullable=False, default=0, comment="知识点总数")
+    mastered_points = Column(Integer, nullable=False, default=0, comment="已掌握知识点数")
+    progress_rate = Column(Numeric(5, 2), nullable=False, default=0, comment="学习进度百分比")
+    error_message = Column(Text, nullable=True, comment="错误信息")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
+
+    # 关联
+    direction = relationship("Direction", back_populates="learning_courses")
+    knowledge_points = relationship("CourseKnowledgePoint", back_populates="course", cascade="all, delete-orphan")
+    relations = relationship("KnowledgeRelation", back_populates="course", cascade="all, delete-orphan")
+
+
+class CourseKnowledgePoint(Base):
+    """课程知识点表"""
+    __tablename__ = "course_knowledge_points"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    course_id = Column(Integer, ForeignKey("learning_courses.id"), nullable=False, comment="课程ID")
+    name = Column(String(200), nullable=False, comment="知识点名称")
+    description = Column(Text, nullable=False, comment="知识点描述")
+    tier = Column(Enum(KnowledgeTier), nullable=False, comment="知识层级")
+    category = Column(String(100), nullable=True, comment="知识分类")
+    importance = Column(Integer, default=3, comment="重要程度1-5")
+    source_material_id = Column(Integer, nullable=True, comment="来源资料ID")
+    parent_id = Column(Integer, ForeignKey("course_knowledge_points.id"), nullable=True, comment="父知识点ID")
+    order_index = Column(Integer, default=0, comment="排序索引")
+    estimated_minutes = Column(Integer, default=30, comment="预估学习时长(分钟)")
+    mastery_level = Column(Numeric(5, 2), nullable=False, default=0, comment="掌握度0-100")
+    practice_count = Column(Integer, nullable=False, default=0, comment="练习次数")
+    correct_count = Column(Integer, nullable=False, default=0, comment="正确次数")
+    last_practiced_at = Column(DateTime, nullable=True, comment="最后练习时间")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+
+    # 关联
+    course = relationship("LearningCourse", back_populates="knowledge_points")
+    parent = relationship("CourseKnowledgePoint", remote_side="CourseKnowledgePoint.id", backref="children")
+
+
+class KnowledgeRelation(Base):
+    """知识关联表"""
+    __tablename__ = "knowledge_relations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    course_id = Column(Integer, ForeignKey("learning_courses.id"), nullable=False, comment="课程ID")
+    source_point_id = Column(Integer, ForeignKey("course_knowledge_points.id"), nullable=False, comment="源知识点ID")
+    target_point_id = Column(Integer, ForeignKey("course_knowledge_points.id"), nullable=False, comment="目标知识点ID")
+    relation_type = Column(Enum(RelationType), nullable=False, comment="关联类型")
+    strength = Column(Integer, default=50, comment="关联强度0-100")
+    description = Column(Text, nullable=True, comment="关联说明")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+
+    # 关联
+    course = relationship("LearningCourse", back_populates="relations")
+    source_point = relationship("CourseKnowledgePoint", foreign_keys=[source_point_id])
+    target_point = relationship("CourseKnowledgePoint", foreign_keys=[target_point_id])

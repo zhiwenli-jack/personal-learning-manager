@@ -23,6 +23,12 @@ from app.models.models import (
     UserDailyTask,
     ExpLog,
     DirectionProgress,
+    KnowledgeTier,
+    RelationType,
+    CourseStatus,
+    LearningCourse,
+    CourseKnowledgePoint,
+    KnowledgeRelation,
 )
 
 __all__ = [
@@ -49,4 +55,10 @@ __all__ = [
     "UserDailyTask",
     "ExpLog",
     "DirectionProgress",
+    "KnowledgeTier",
+    "RelationType",
+    "CourseStatus",
+    "LearningCourse",
+    "CourseKnowledgePoint",
+    "KnowledgeRelation",
 ]

@@ -12,6 +12,7 @@ from app.api import (
     mistakes_router,
     parse_router,
     gamification_router,
+    learning_mode_router,
 )
 
 settings = get_settings()
@@ -42,6 +43,7 @@ app.include_router(exams_router, prefix="/api")
 app.include_router(mistakes_router, prefix="/api")
 app.include_router(parse_router, prefix="/api")
 app.include_router(gamification_router, prefix="/api")
+app.include_router(learning_mode_router, prefix="/api")
 
 
 @app.on_event("startup")
